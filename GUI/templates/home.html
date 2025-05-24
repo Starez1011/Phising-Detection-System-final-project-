@@ -1,0 +1,80 @@
+{% extends 'layout.html'%}
+{% block title %}Web Phishing Detection{% endblock title %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title text-center mb-4">
+                    <i class="fas fa-shield-alt text-primary me-2"></i>
+                    Real-time Phishing Detection
+                </h3>
+                
+                <p class="text-center text-muted mb-4">
+                    Enter a URL below to check if it's safe using our advanced machine learning algorithm
+                </p>
+
+                <form method="POST" action="{{url_for('getURL')}}">
+                    <div class="form-group mb-4">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-link"></i>
+                            </span>
+                            <input class="form-control form-control-lg" 
+                                   type="text" 
+                                   name="url" 
+                                   placeholder="Enter complete URL (e.g., https://www.amazon.com)"
+                                   value="{{request.form.url}}" 
+                                   required>
+                        </div>
+                        <small class="form-text text-muted mt-2">
+                            Please enter a complete URL including the domain and TLD (e.g., amazon.com, www.google.com)
+                        </small>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-search me-2"></i>
+                            Check URL
+                        </button>
+                    </div>
+                </form>
+
+                {% if error %}
+                    <div class="mt-4">
+                        {% if error == 'This URL is Legitimate' %}
+                            <div class="alert alert-success" role="alert">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>{{error}}</strong>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>{{error}}</strong>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if reasons %}
+                    <div class="mt-4">
+                        <h4 class="mb-3">
+                            <i class="fas fa-list-ul me-2"></i>
+                            Analysis Details
+                        </h4>
+                        <div class="list-group">
+                            {% for reason in reasons %}
+                                <div class="list-group-item list-group-item-action">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    {{ reason }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock body %}

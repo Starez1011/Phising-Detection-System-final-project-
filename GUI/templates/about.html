@@ -1,0 +1,90 @@
+{% extends 'layout.html'%}
+
+{% block title %}About - Web Phishing Detection{% endblock title %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title text-center mb-4">
+                    <i class="fas fa-info-circle text-primary me-2"></i>
+                    About Our Phishing Detection System
+                </h3>
+
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <i class="fas fa-shield-alt text-primary me-2"></i>
+                                    How It Works
+                                </h5>
+                                <p class="card-text">
+                                    Our system uses advanced machine learning algorithms to analyze URLs and detect potential phishing attempts. It examines various features including:
+                                </p>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        URL structure and patterns
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Domain age and registration
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        SSL certificate validation
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Suspicious patterns and behaviors
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <i class="fas fa-lock text-primary me-2"></i>
+                                    Security Features
+                                </h5>
+                                <p class="card-text">
+                                    Our system provides comprehensive protection against various types of phishing attacks:
+                                </p>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">
+                                        <i class="fas fa-shield-alt text-primary me-2"></i>
+                                        Real-time URL analysis
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-shield-alt text-primary me-2"></i>
+                                        Machine learning-based detection
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-shield-alt text-primary me-2"></i>
+                                        Detailed security reports
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-shield-alt text-primary me-2"></i>
+                                        Regular updates and improvements
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-4" role="alert">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Tip:</strong> Always verify the URL before entering sensitive information, even if it appears legitimate.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock body %}
+	

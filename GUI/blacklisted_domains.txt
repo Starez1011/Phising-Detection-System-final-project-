@@ -1,0 +1,10 @@
+suspicious-site.net
+suspicious-bank.com
+malicious-domain.org
+fake-login-page.com
+malware-site.com
+fake-payment.com
+fake-bank-login.com
+fake-gov-site.gov
+scam-website.com
+phishing-example.com
