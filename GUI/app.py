@@ -4,7 +4,6 @@ import pickle
 import warnings
 import xgboost as xgb
 import pandas as pd
-from security_utils import SecurityUtils
 from urllib.parse import urlparse
 
 app = Flask(__name__, static_url_path='/static')
@@ -14,11 +13,17 @@ warnings.filterwarnings('ignore')
 
 # Create instances
 feature_extractor = FeatureExtraction.FeatureExtraction()
-security_utils = SecurityUtils()
 
 # Load XGBoost model
 try:
-    model = xgb.XGBClassifier()
+    model = xgb.XGBClassifier(
+        n_estimators=100,
+        learning_rate=0.1,
+        max_depth=5,
+        random_state=42,
+        tree_method='hist',  # Use histogram-based algorithm for better memory efficiency
+        n_jobs=1  # Use single thread to reduce memory usage
+    )
     model.load_model('XGBoostModel_12000.sav')
     print("Model loaded successfully")
 except Exception as e:
@@ -162,6 +167,34 @@ def getURL():
         url = result
         print(f"Validated URL: {url}")
         
+        # Check for number-for-letter substitutions first
+        number_letter_map = {
+            '0': 'o',
+            '1': 'i',
+            '3': 'e',
+            '4': 'a',
+            '5': 's',
+            '7': 't',
+            '8': 'b'
+        }
+        
+        suspicious_chars = []
+        for char in url:
+            if char in number_letter_map:
+                suspicious_chars.append(f"'{char}' (mimicking '{number_letter_map[char]}')")
+        
+        if suspicious_chars:
+            value = "⚠️ HIGH RISK: This URL is Phishing"
+            reasons = [
+                "⚠️ HIGH RISK: This URL uses numbers to mimic letters",
+                "Suspicious character substitutions detected:"
+            ]
+            for char in suspicious_chars:
+                reasons.append(f"- {char}")
+            reasons.append("This is a common phishing technique to make malicious URLs look legitimate")
+            reasons.append("Example: 'bank0famerica.com' is trying to mimic 'bankofamerica.com'")
+            return render_template("home.html", error=value, reasons=reasons)
+        
         if model is None:
             return render_template("home.html", error="Error: Model not loaded properly")
         
@@ -172,10 +205,7 @@ def getURL():
             predicted_value = model.predict(data)
             features = data.iloc[0].to_dict()
             
-            # Perform security checks
-            security_results = perform_security_checks(url)
-            
-            # Determine final result based on ML prediction and security checks
+            # Determine final result based on ML prediction
             is_phishing = False
             confidence = "HIGH"
             trust_level = "HIGH" if is_trusted_domain(url) else "NORMAL"
@@ -184,10 +214,6 @@ def getURL():
             if predicted_value[0] == 1:
                 is_phishing = True
                 confidence = "HIGH"
-            # If security checks show suspicious patterns
-            elif security_results['is_suspicious']:
-                is_phishing = True
-                confidence = "MODERATE"
             
             # Prepare the response
             if is_phishing:
@@ -201,10 +227,6 @@ def getURL():
                 
                 if phishing_reasons:
                     reasons.update(phishing_reasons)
-                if security_results['warnings']:
-                    reasons.update(security_results['warnings'])
-                if security_results['reasons']:
-                    reasons.update(security_results['reasons'])
                 if not reasons:
                     reasons.add("Multiple indicators suggest this is a phishing website")
                 reasons = list(reasons)  # Convert set back to list for template
@@ -221,47 +243,6 @@ def getURL():
         except Exception as e:
             print(f"Error during prediction: {str(e)}")
             return render_template("home.html", error=f"Error during prediction: {str(e)}")
-
-def perform_security_checks(url):
-    """Perform all security checks on the URL"""
-    results = {
-        'is_suspicious': False,
-        'reasons': [],
-        'warnings': set()  # Using set to prevent duplicates
-    }
-    
-    # Check SSL certificate
-    ssl_result = security_utils.check_ssl_certificate(url)
-    if not ssl_result['valid']:
-        results['is_suspicious'] = True
-        results['reasons'].append(ssl_result['error'])
-    elif ssl_result.get('error'):
-        results['warnings'].add(ssl_result['error'])
-    
-    # Check redirect chain
-    redirect_result = security_utils.check_redirect_chain(url)
-    if redirect_result['suspicious']:
-        results['is_suspicious'] = True
-        results['reasons'].extend(redirect_result['reasons'])
-    elif redirect_result.get('reasons'):
-        results['warnings'].update(redirect_result['reasons'])
-    
-    # Check IP reputation
-    ip_result = security_utils.check_ip_reputation(url)
-    if ip_result.get('is_suspicious'):
-        results['is_suspicious'] = True
-        if ip_result.get('warnings'):
-            results['reasons'].extend(ip_result['warnings'])
-        else:
-            results['reasons'].append(f"⚠️ Suspicious IP Address: {ip_result.get('ip_address')}")
-    
-    # Add any warnings from IP check
-    if ip_result.get('warnings'):
-        results['warnings'].update(ip_result['warnings'])
-    
-    # Convert set back to list for template rendering
-    results['warnings'] = list(results['warnings'])
-    return results
 
 if __name__ == "__main__":
     app.run(debug=True)

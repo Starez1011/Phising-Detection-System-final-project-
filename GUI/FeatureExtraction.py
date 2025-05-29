@@ -108,7 +108,6 @@ class FeatureExtraction:
             typo_check = self.check_typo_squatting(url)
             if typo_check['is_typo_squatting']:
                 phishing_reasons.append(f"⚠️ HIGH RISK: This appears to be a typo-squatting attempt")
-                phishing_reasons.append(f"This domain is trying to impersonate {typo_check['company_name']}'s official website ({typo_check['original_domain']})")
             
             # Check for suspicious TLD
             if self.check_suspicious_tld(url):
@@ -153,70 +152,97 @@ class FeatureExtraction:
         """Check for suspicious patterns in the URL"""
         suspicious_patterns = [
             r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}',  # IP address
-            r'[^a-zA-Z0-9\-\.]',  # Special characters
-            r'(?:login|signin|account|secure|webscr|banking)(?:[^a-zA-Z]|$)',  # Suspicious keywords at word boundaries
-            r'\.(tk|ml|ga|cf|gq|xyz)$'  # Suspicious TLDs
+            r'[!@#$%^&*()_+=<>?/\\|~`]',  # Only truly suspicious special characters
+            r'(?:login|signin|account|secure|webscr)(?:[^a-zA-Z]|$)',  # Suspicious keywords at word boundaries
+            r'\.(tk|ml|ga|cf|gq|xyz)$',  # Suspicious TLDs
+            r'(?:\.|\/)(?:php|asp|jsp|exe|bat|cmd|sh|bash)(?:\.|\/|$)',  # Suspicious file extensions
+            r'(?:\.|\/)(?:wp-|wp_|wp\.|wordpress)',  # WordPress-related paths
+            r'(?:\.|\/)(?:admin|administrator|login|signin|signup|register|account|secure|webscr)(?:\.|\/|$)'  # Suspicious paths
         ]
         return any(re.search(pattern, url, re.IGNORECASE) for pattern in suspicious_patterns)
 
     def check_typo_squatting(self, url):
-        """Check for typo-squatting attempts"""
+        """Check if the URL is a typo-squatting attempt"""
         try:
             domain = urlparse(url).netloc.lower()
+            # Remove www. if present
+            if domain.startswith('www.'):
+                domain = domain[4:]
             
-            # Common typo patterns
-            typo_patterns = {
-                'google': ['gooogle', 'gogle', 'googel'],
-                'microsoft': ['microsft', 'mircosoft', 'microsfot'],
-                'apple': ['appel', 'applle', 'appl'],
-                'amazon': ['amazn', 'amazoon', 'amaz0n'],
-                'facebook': ['facebok', 'faceboook', 'fasebook'],
-                'paypal': ['paypall', 'payypal', 'paypaal'],
-                'netflix': ['netflx', 'netfliix', 'netfli'],
-                'twitter': ['twiter', 'twtter', 'twittr'],
-                'instagram': ['instagrm', 'instagrram', 'instagr'],
-                'linkedin': ['linkdin', 'linkedinn', 'linkd'],
-                'yahoo': ['yaho', 'yahooo', 'yah'],
-                'hotmail': ['hotmal', 'hotmaill', 'hotm'],
-                'gmail': ['gmal', 'gmaiil', 'gmai'],
-                'outlook': ['outlok', 'outlooook', 'outl'],
-                'bankofamerica': ['bankofameric', 'bankofamerika', 'bofa'],
-                'wellsfargo': ['wellsfarg', 'wellsfargo', 'wells'],
-                'chase': ['chas', 'chasee', 'chas'],
-                'citibank': ['citibnk', 'citibankk', 'citi'],
-                'hsbc': ['hsb', 'hsbcc', 'hs'],
-                'barclays': ['barclay', 'barclayss', 'barcl'],
-                'santander': ['santandr', 'santanderr', 'sant'],
-                'deutschebank': ['deutschebnk', 'deutschebankk', 'deutsche'],
-                'rbs': ['rb', 'rbss', 'royalbank'],
-                'lloyds': ['lloyd', 'lloydss', 'lloy'],
-                'halifax': ['halifx', 'halifaxx', 'halif'],
-                'natwest': ['natwst', 'natwestt', 'natw'],
-                'tsb': ['ts', 'tsbb', 'trustee'],
-                'nationwide': ['nationwid', 'nationwidee', 'nation'],
-                'metrobank': ['metrobnk', 'metrobankk', 'metro'],
-                'standardchartered': ['standardcharterd', 'standardchartered', 'standard'],
-                'hsbc': ['hsb', 'hsbcc', 'hs'],
-                'barclays': ['barclay', 'barclayss', 'barcl'],
-                'santander': ['santandr', 'santanderr', 'sant'],
-                'deutschebank': ['deutschebnk', 'deutschebankk', 'deutsche'],
-                'rbs': ['rb', 'rbss', 'royalbank'],
-                'lloyds': ['lloyd', 'lloydss', 'lloy'],
-                'halifax': ['halifx', 'halifaxx', 'halif'],
-                'natwest': ['natwst', 'natwestt', 'natw'],
-                'tsb': ['ts', 'tsbb', 'trustee'],
-                'nationwide': ['nationwid', 'nationwidee', 'nation'],
-                'metrobank': ['metrobnk', 'metrobankk', 'metro'],
-                'standardchartered': ['standardcharterd', 'standardchartered', 'standard']
+            # Dictionary of known legitimate domains and their common typo-squatting variations
+            typo_squatting_domains = {
+                'google.com': ['gooogle.com', 'gogle.com', 'googl.com'],
+                'facebook.com': ['facebok.com', 'faceboook.com', 'facbook.com'],
+                'amazon.com': ['amazn.com', 'amazonn.com', 'amazoon.com'],
+                'apple.com': ['appl.com', 'applle.com', 'appel.com'],
+                'microsoft.com': ['microsft.com', 'microsoftt.com', 'microsof.com'],
+                'paypal.com': ['paypall.com', 'paypal.me', 'paypall.me'],
+                'netflix.com': ['netflx.com', 'netflixx.com', 'netfliix.com'],
+                'instagram.com': ['instagrm.com', 'instgram.com', 'instagrram.com'],
+                'twitter.com': ['twiter.com', 'twittr.com', 'twtter.com'],
+                'linkedin.com': ['linkdin.com', 'linkedinn.com', 'linkd.in'],
+                'youtube.com': ['youtub.com', 'youttube.com', 'youtubbe.com'],
+                'gmail.com': ['gmaiil.com', 'gmaill.com', 'gmial.com'],
+                'yahoo.com': ['yahooo.com', 'yaho.com', 'yahooo.com'],
+                'hotmail.com': ['hotmal.com', 'hotmaill.com', 'hotmial.com'],
+                'outlook.com': ['outlok.com', 'outlooook.com', 'outlok.com'],
+                'dropbox.com': ['dropbx.com', 'dropboxx.com', 'dropboks.com'],
+                'spotify.com': ['spotfy.com', 'spotifiy.com', 'spotiffy.com'],
+                'ebay.com': ['ebbay.com', 'eebay.com', 'ebayy.com'],
+                'walmart.com': ['wal-mart.com', 'walmartt.com', 'wal-martt.com'],
+                'target.com': ['targt.com', 'targget.com', 'targt.com'],
+                'bestbuy.com': ['best-buy.com', 'bestbuyy.com', 'best-buyy.com'],
+                'homedepot.com': ['home-depot.com', 'homedepott.com', 'home-depott.com'],
+                'lowes.com': ['lowess.com', 'lowes.com', 'lowess.com'],
+                'costco.com': ['costtco.com', 'costcoo.com', 'costtcoo.com'],
+                'macys.com': ['macyss.com', 'macys.com', 'macyss.com'],
+                'nordstrom.com': ['nordstromm.com', 'nordstrom.com', 'nordstromm.com'],
+                'gap.com': ['gapp.com', 'gapp.com', 'gapp.com'],
+                'oldnavy.com': ['oldnavvy.com', 'oldnavy.com', 'oldnavvy.com'],
+                'bananarepublic.com': ['bananarepublicc.com', 'bananarepublic.com', 'bananarepublicc.com'],
+                'athleta.com': ['athlettaa.com', 'athleta.com', 'athlettaa.com'],
+                'zara.com': ['zarra.com', 'zara.com', 'zarra.com'],
+                'h&m.com': ['h&mm.com', 'h&m.com', 'h&mm.com'],
+                'forever21.com': ['forever21.com', 'forever21.com', 'forever21.com'],
+                'american eagle.com': ['american eagle.com', 'american eagle.com', 'american eagle.com'],
+                'aeropostale.com': ['aeropostale.com', 'aeropostale.com', 'aeropostale.com'],
+                'express.com': ['expresss.com', 'express.com', 'expresss.com'],
+                'hollister.com': ['hollisterr.com', 'hollister.com', 'hollisterr.com'],
+                'abercrombie.com': ['abercrombiee.com', 'abercrombie.com', 'abercrombiee.com'],
+                'victoriassecret.com': ['victoriassecret.com', 'victoriassecret.com', 'victoriassecret.com'],
+                'pink.com': ['pinkk.com', 'pink.com', 'pinkk.com'],
+                'bathandbodyworks.com': ['bathandbodyworks.com', 'bathandbodyworks.com', 'bathandbodyworks.com'],
+                'sephora.com': ['sephoraa.com', 'sephora.com', 'sephoraa.com'],
+                'ulta.com': ['ultaa.com', 'ulta.com', 'ultaa.com'],
+                'macys.com': ['macyss.com', 'macys.com', 'macyss.com'],
+                'nordstrom.com': ['nordstromm.com', 'nordstrom.com', 'nordstromm.com'],
+                'gap.com': ['gapp.com', 'gapp.com', 'gapp.com'],
+                'oldnavy.com': ['oldnavvy.com', 'oldnavy.com', 'oldnavvy.com'],
+                'bananarepublic.com': ['bananarepublicc.com', 'bananarepublic.com', 'bananarepublicc.com'],
+                'athleta.com': ['athlettaa.com', 'athleta.com', 'athlettaa.com'],
+                'zara.com': ['zarra.com', 'zara.com', 'zarra.com'],
+                'h&m.com': ['h&mm.com', 'h&m.com', 'h&mm.com'],
+                'forever21.com': ['forever21.com', 'forever21.com', 'forever21.com'],
+                'american eagle.com': ['american eagle.com', 'american eagle.com', 'american eagle.com'],
+                'aeropostale.com': ['aeropostale.com', 'aeropostale.com', 'aeropostale.com'],
+                'express.com': ['expresss.com', 'express.com', 'expresss.com'],
+                'hollister.com': ['hollisterr.com', 'hollister.com', 'hollisterr.com'],
+                'abercrombie.com': ['abercrombiee.com', 'abercrombie.com', 'abercrombiee.com'],
+                'victoriassecret.com': ['victoriassecret.com', 'victoriassecret.com', 'victoriassecret.com'],
+                'pink.com': ['pinkk.com', 'pink.com', 'pinkk.com'],
+                'bathandbodyworks.com': ['bathandbodyworks.com', 'bathandbodyworks.com', 'bathandbodyworks.com'],
+                'sephora.com': ['sephoraa.com', 'sephora.com', 'sephoraa.com'],
+                'ulta.com': ['ultaa.com', 'ulta.com', 'ultaa.com'],
+                'nabilbank.com': ['nabilbankk.com', 'nabilbank.com', 'nabilbankk.com']
             }
             
-            # Check for typo-squatting
-            for company, typos in typo_patterns.items():
-                if any(typo in domain for typo in typos):
+            # Check if the domain is a typo-squatting attempt
+            for legitimate_domain, variations in typo_squatting_domains.items():
+                if domain in variations:
                     return {
                         'is_typo_squatting': True,
-                        'company_name': company.capitalize(),
-                        'original_domain': f'https://www.{company}.com'
+                        'company_name': legitimate_domain.split('.')[0].title(),
+                        'original_domain': f"https://www.{legitimate_domain}"
                     }
             
             return {'is_typo_squatting': False}
