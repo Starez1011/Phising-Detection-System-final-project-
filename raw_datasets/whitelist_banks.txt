@@ -1,0 +1,616 @@
+# United States
+bankofamerica.com
+chase.com
+wellsfargo.com
+usbank.com
+citibank.com
+
+# United Kingdom
+hsbc.co.uk
+barclays.co.uk
+natwest.com
+lloydsbank.com
+santander.co.uk
+
+# Canada
+rbc.com
+td.com
+scotiabank.com
+bmo.com
+cibc.com
+
+# Australia
+commbank.com.au
+anz.com.au
+nab.com.au
+westpac.com.au
+
+# Germany
+deutsche-bank.de
+commerzbank.de
+sparkasse.de
+postbank.de
+
+# France
+bnpparibas.com
+societegenerale.com
+credit-agricole.fr
+labanquepostale.fr
+
+# Japan
+mufg.jp
+mizuho-fg.co.jp
+smfg.co.jp
+resona-gr.co.jp
+
+# China
+icbc.com.cn
+ccb.com
+bankofchina.com
+abchina.com
+bankcomm.com           # Bank of Communications (交通银行)
+psbc.com               # Postal Savings Bank of China (中国邮政储蓄银行)
+cebchina.com           # China Everbright Bank (中国光大银行)
+cgbchina.com.cn        # China Guangfa Bank (广发银行)
+hxb.com.cn             # Huaxia Bank (华夏银行)
+ecitic.com             # China CITIC Bank (中信银行)
+czbank.com             # China Zheshang Bank (浙商银行)
+cib.com.cn             # Industrial Bank Co., Ltd. (兴业银行)
+boc.cn                 # Bank of Chongqing (重庆银行)
+pab.com.cn             # Ping An Bank (平安银行)
+bosc.cn                # Bank of Shanghai (上海银行)
+bankofbeijing.com.cn   # Bank of Beijing (北京银行)
+bankofchengdu.com      # Bank of Chengdu (成都银行)
+czcb.com.cn            # China Zheshang Bank (also uses this domain)
+hsbank.com.cn          # Hengfeng Bank (恒丰银行)
+bocd.com.cn            # Bank of Dalian (大连银行)
+qdccb.com              # Qingdao Bank (青岛银行)
+cib.com.cn             # China Industrial Bank (兴业银行)
+baoshangbank.com
+
+# India
+indianbank.in
+hdfcbank.com
+icicibank.com
+sbi.co.in
+axisbank.com
+kotak.com
+
+
+# Brazil
+itau.com.br
+bradesco.com.br
+bancodobrasil.com.br
+caixa.gov.br
+
+# South Africa
+standardbank.co.za
+absa.co.za
+fnb.co.za
+nedbank.co.za
+
+# Singapore
+dbs.com.sg
+ocbc.com
+uob.com.sg
+
+# Switzerland
+ubs.com
+credit-suisse.com
+raiffeisen.ch
+
+# Sweden
+seb.se
+swedbank.se
+nordea.se
+
+# Norway
+dnb.no
+sparebank1.no
+nordea.no
+
+# Netherlands
+ing.nl
+rabobank.nl
+abnamro.nl
+
+# Italy
+unicredit.it
+intesasanpaolo.com
+bancopopolare.it
+
+# Spain
+bbva.es
+santander.es
+caixabank.es
+
+# Russia
+sberbank.ru
+vtb.ru
+gazprombank.ru
+
+# South Korea
+kbfg.com
+shinhan.com
+wooribank.com
+
+# Malaysia
+maybank.com
+cimb.com
+rhbgroup.com
+
+# Indonesia
+bankmandiri.co.id
+bni.co.id
+bri.co.id
+
+# Thailand
+scb.co.th
+krungsri.com
+kasikornbank.com
+
+# Philippines
+bdo.com.ph
+bpi.com.ph
+metrobank.com.ph
+
+# United Arab Emirates
+emiratesnbd.com
+adcb.com
+rakbank.ae
+
+# Saudi Arabia
+alrajhibank.com.sa
+samba.com
+riyadbank.com
+
+# Qatar
+qnb.com
+cbq.qa
+dukhanbank.com
+
+# Kuwait
+nbk.com
+burgan.com
+gulfbank.com.kw
+
+# Egypt
+nbe.com.eg
+banque-misr.com
+cibeg.com
+
+# Kenya
+kcbgroup.com
+equitybankgroup.com
+co-opbank.co.ke
+
+# Nigeria
+gtbank.com
+zenithbank.com
+firstbanknigeria.com
+
+# Pakistan
+hbl.com
+ubl.com.pk
+mcb.com.pk
+
+# Bangladesh
+bracbank.com
+dbbl.com.bd
+ebl.com.bd
+
+# Sri Lanka
+bankofceylon.lk
+peoplesbank.lk
+combank.lk
+
+# Vietnam
+vietcombank.com.vn
+bidv.com.vn
+vietinbank.vn
+
+# Turkey
+isbank.com.tr
+garantibbva.com.tr
+akbank.com
+
+# Israel
+bankhapoalim.co.il
+bankleumi.co.il
+discountbank.co.il
+
+# Argentina
+bna.com.ar
+bancociudad.com.ar
+bancoprovincia.com.ar
+
+# Chile
+bancoestado.cl
+bancochile.cl
+scotiabank.cl
+
+# Colombia
+bancodebogota.com
+bancolombia.com
+davivienda.com
+
+# Peru
+bbva.pe
+interbank.pe
+scotiabank.com.pe
+
+# Venezuela
+banesco.com
+mercantilbanco.com
+bancodevenezuela.com
+
+# Mexico
+bbva.mx
+banorte.com
+santander.com.mx
+
+# New Zealand
+anz.co.nz
+bnz.co.nz
+westpac.co.nz
+
+# Ireland
+aib.ie
+bankofireland.com
+permanenttsb.ie
+
+# Austria
+raiffeisen.at
+erstebank.at
+unicreditbank.at
+
+# Belgium
+ing.be
+kbc.be
+belfius.be
+
+# Denmark
+danskebank.dk
+nordea.dk
+jyskebank.dk
+
+# Finland
+nordea.fi
+op.fi
+s-pankki.fi
+
+# Poland
+pkobp.pl
+mbank.pl
+ingbank.pl
+
+# Czech Republic
+csas.cz
+kb.cz
+moneta.cz
+
+# Hungary
+otpbank.hu
+erste.hu
+raiffeisen.hu
+
+# Romania
+bcr.ro
+brd.ro
+raiffeisen.ro
+
+# Bulgaria
+unicreditbulbank.bg
+fibank.bg
+raiffeisen.bg
+
+# Ukraine
+privatbank.ua
+ukrsibbank.com
+oschadbank.ua
+
+# Greece
+nationalbank.gr
+alphabank.gr
+piraeusbank.gr
+
+# Portugal
+millenniumbcp.pt
+novobanco.pt
+santander.pt
+
+# Iceland
+landsbankinn.is
+arionbanki.is
+islandsbanki.is
+
+# Slovenia
+nlb.si
+unicreditbank.si
+abanka.si
+
+# Slovakia
+slsp.sk
+vub.sk
+tatrabanka.sk
+
+# Croatia
+pbz.hr
+erste.hr
+zagrebanka.hr
+
+# Serbia
+bancaintesa.rs
+raiffeisenbank.rs
+komercijalnabanka.rs
+
+# Estonia
+swedbank.ee
+seb.ee
+lhv.ee
+
+# Latvia
+swedbank.lv
+seb.lv
+citadele.lv
+
+# Lithuania
+swedbank.lt
+seb.lt
+luminor.lt
+
+# Luxembourg
+bgl.lu
+bcee.lu
+raiffeisen.lu
+
+# Liechtenstein
+llb.li
+valartisbank.li
+bankfrick.li
+
+# Malta
+bov.com
+hsbc.com.mt
+banif.com.mt
+
+# Cyprus
+bankofcyprus.com
+hellenicbank.com
+rcbcy.com
+
+# Monaco
+cmb.mc
+banquepopulaire.mc
+smb.mc
+
+# Andorra
+andbank.com
+creditandorra.ad
+morawealth.com
+
+# San Marino
+carisp.sm
+bsm.sm
+banca.sm
+
+# Vatican City
+ior.va
+
+# Greenland
+bank.gl
+
+# Faroe Islands
+banknordik.fo
+
+# Gibraltar
+gibintbank.gi
+
+# Isle of Man
+iombank.com
+
+# Jersey
+jerseybank.com
+
+# Guernsey
+guernseybank.com
+
+# Bermuda
+clarienbank.com
+
+# Cayman Islands
+caymanbank.com
+
+# Bahamas
+royalbankbahamas.com
+
+# Barbados
+republicbarbados.com
+
+# Trinidad and Tobago
+republictt.com
+
+# Jamaica
+jncb.com
+
+# Haiti
+unibankhaiti.com
+
+# Dominican Republic
+banreservas.com
+
+# Panama
+banconacional.com.pa
+
+# Costa Rica
+bncr.fi.cr
+
+# El Salvador
+bancoagricola.com
+
+# Honduras
+baccredomatic.hn
+
+# Nicaragua
+lafise.com.ni
+
+# Guatemala
+banrural.com.gt
+
+# Belize
+atlanticibl.com
+
+# Paraguay
+bancovision.com.py
+
+# Uruguay
+brou.com.uy
+
+# Bolivia
+bcp.com.bo
+
+# Ecuador
+pichincha.com
+
+# Suriname
+dsbbank.sr
+
+# Guyana
+guyana-bank.com
+
+# Mongolia
+golomtbank.com
+
+# Kazakhstan
+halykbank.kz
+
+# Uzbekistan
+nbu.uz
+
+# Turkmenistan
+tdb.gov.tm
+
+# Kyrgyzstan
+demirbank.kg
+
+# Tajikistan
+eskhata.tj
+
+# Armenia
+ameriabank.am
+
+# Georgia
+tbcbank.ge
+
+# Azerbaijan
+pashabank.az
+
+# Iran
+bmi.ir
+
+# Iraq
+tradebank.gov.iq
+
+# Syria
+cbc.sy
+
+# Lebanon
+fransabank.com
+
+# Jordan
+ahli.com.jo
+
+# Palestine
+bankofpalestine.com
+
+# Yemen
+cbcyemen.com
+
+# Oman
+bankmuscat.com
+
+# Bahrain
+nbbonline.com
+
+# Maldives
+bankofmaldives.com.mv
+
+# Bhutan
+bhutanbank.bt
+
+# Afghanistan
+azizibank.af
+
+# Laos
+bcel.com.la
+
+# Cambodia
+acledabank.com.kh
+
+# Myanmar
+cbbank.com.mm
+
+# Brunei
+baiduri.com.bn
+
+# Papua New Guinea
+bsp.com.pg
+
+# Fiji
+bsp.com.fj
+
+# Samoa
+samoabank.com
+
+# Tonga
+tonganationalbank.to
+
+# Vanuatu
+nbv.vu
+
+# Solomon Islands
+bsp.com.sb
+
+# Micronesia
+bankofguam.com
+
+# Palau
+bankofpalau.com
+
+# Marshall Islands
+bankofmarshallislands.com
+
+# Nauru
+naurubank.com
+
+# Tuvalu
+nationalbankoftuvalu.tv
+
+# Kiribati
+bankofkiribati.com
+
+# East Timor
+bnctl.tl
+
+# Nepal
+nabilbank.com
+nmbbanknepal.com
+nicasiabank.com
+prabhubank.com
+nepalbank.com.np
+globalimebank.com
+sanima.com
+mbank.com.np
+kumaribank.com
+machbank.com
+citizenbank.com.np
+civilbank.com.np
+everestbankltd.com
+sunrisebank.com.np
+siddharthabank.com
+laxmibank.com
+jyotibikasbank.com
+muktinathbank.com.np
+primebank.com.np
+megabanknepal.com
+nccbank.com.np
