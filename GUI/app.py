@@ -6,6 +6,11 @@ import xgboost as xgb
 import pandas as pd
 from urllib.parse import urlparse
 import os
+import requests
+from requests.exceptions import RequestException, SSLError, ConnectionError, Timeout
+import socket
+import urllib3
+import pyshorteners
 
 app = Flask(__name__, static_url_path='/static')
 
@@ -15,6 +20,9 @@ warnings.filterwarnings('ignore')
 # Create instances
 feature_extractor = FeatureExtraction.FeatureExtraction()
 
+# Suppress SSL verification warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 def get_model_path(model_name):
     """
     Get the correct path for model files regardless of how the application is run
@@ -23,22 +31,89 @@ def get_model_path(model_name):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(current_dir, model_name)
 
+def check_url_connectivity(url):
+    """
+    Check if the URL is accessible and has valid HTTPS connection
+    Returns: (bool, str) - (is_accessible, message)
+    """
+    try:
+        # Add https:// if not present
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+
+        # Set a reasonable timeout
+        timeout = 15
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+
+        # First try to resolve the domain
+        domain = urlparse(url).netloc.lower()
+        try:
+            socket.gethostbyname(domain)
+        except socket.gaierror:
+            return False, "Domain name could not be resolved. Please check if the URL is correct."
+
+        # Try HTTPS connection first with SSL verification disabled
+        try:
+            response = requests.get(url, timeout=timeout, headers=headers, verify=False)
+            if response.status_code == 200:
+                return True, "Website is accessible"
+            else:
+                # Try with www. prefix
+                if not domain.startswith('www.'):
+                    www_url = url.replace('://', '://www.')
+                    try:
+                        response = requests.get(www_url, timeout=timeout, headers=headers, verify=False)
+                        if response.status_code == 200:
+                            return True, "Website is accessible with www prefix"
+                    except:
+                        pass
+                
+                return False, f"Website returned status code {response.status_code}. The website might be temporarily unavailable."
+        except SSLError:
+            # If SSL fails, try HTTP
+            try:
+                url = url.replace('https://', 'http://')
+                response = requests.get(url, timeout=timeout, headers=headers)
+                if response.status_code == 200:
+                    return True, "Website is accessible via HTTP"
+                else:
+                    return False, f"Website returned status code {response.status_code}. The website might be temporarily unavailable."
+            except RequestException:
+                return False, "Website is not accessible. The domain might be inactive or the server is not responding."
+    except (ConnectionError, Timeout):
+        return False, "Could not connect to the website. The domain might be inactive or the server is not responding."
+    except Exception as e:
+        print(f"Connection error details: {str(e)}")  # Print detailed error for debugging
+        return False, f"Error checking website: {str(e)}"
+
 # Load XGBoost model
 try:
-    model = xgb.XGBClassifier(
+    xgb_model = xgb.XGBClassifier(
         n_estimators=100,
         learning_rate=0.1,
         max_depth=5,
         random_state=42,
-        tree_method='hist',  # Use histogram-based algorithm for better memory efficiency
-        n_jobs=1  # Use single thread to reduce memory usage
+        tree_method='hist',
+        n_jobs=1
     )
-    model_path = get_model_path('XGBoostModel_12000.sav')
-    model.load_model(model_path)
-    print("Model loaded successfully")
+    xgb_model_path = get_model_path('XGBoostModel_12000.sav')
+    xgb_model.load_model(xgb_model_path)
+    print("XGBoost model loaded successfully")
 except Exception as e:
     print(f"Error loading XGBoost model: {e}")
-    model = None
+    xgb_model = None
+
+# Load Random Forest model
+try:
+    rf_model_path = get_model_path('RFmodel_12000.sav')
+    with open(rf_model_path, 'rb') as f:
+        rf_model = pickle.load(f)
+    print("Random Forest model loaded successfully")
+except Exception as e:
+    print(f"Error loading Random Forest model: {e}")
+    rf_model = None
 
 def preprocess_data(data):
     """Preprocess the data to match model's expected format"""
@@ -177,59 +252,97 @@ def getURL():
         url = result
         print(f"Validated URL: {url}")
         
-        # Check for number-for-letter substitutions first
-        number_letter_map = {
-            '0': 'o',
-            '1': 'i',
-            '3': 'e',
-            '4': 'a',
-            '5': 's',
-            '7': 't',
-            '8': 'b'
-        }
+        # Check if it's a shortened URL and resolve it
+        original_url = url
+        try:
+            # First try to resolve using requests with redirects
+            response = requests.head(url, allow_redirects=True, timeout=10)
+            final_url = response.url
+            
+            # If the URL is different, it was a redirect
+            is_shortened = final_url != original_url
+            
+            if is_shortened:
+                print(f"Shortened URL detected. Original: {original_url}")
+                print(f"Final destination: {final_url}")
+                # Use the final URL for all subsequent checks
+                url = final_url
+        except Exception as e:
+            print(f"Error resolving shortened URL: {str(e)}")
+            # If direct resolution fails, try using pyshorteners
+            try:
+                shortener = pyshorteners.Shortener()
+                final_url = shortener.expand(url)
+                if final_url and final_url != url:
+                    is_shortened = True
+                    print(f"Shortened URL detected via pyshorteners. Original: {original_url}")
+                    print(f"Final destination: {final_url}")
+                    url = final_url
+            except Exception as e:
+                print(f"Error using pyshorteners: {str(e)}")
+                # If both methods fail, proceed with original URL
+                is_shortened = False
+                final_url = url
         
-        suspicious_chars = []
-        for char in url:
-            if char in number_letter_map:
-                suspicious_chars.append(f"'{char}' (mimicking '{number_letter_map[char]}')")
+        # Check URL connectivity
+        is_accessible, connectivity_message = check_url_connectivity(url)
+        if not is_accessible:
+            if is_shortened:
+                return render_template("home.html", 
+                    error="Website Not Accessible", 
+                    reasons=[
+                        f"Final destination: {final_url}",
+                        connectivity_message
+                    ])
+            return render_template("home.html", error="Website Not Accessible", reasons=[connectivity_message])
         
-        if suspicious_chars:
-            value = "⚠️ HIGH RISK: This URL is Phishing"
-            reasons = [
-                "⚠️ HIGH RISK: This URL uses numbers to mimic letters",
-                "Suspicious character substitutions detected:"
-            ]
-            for char in suspicious_chars:
-                reasons.append(f"- {char}")
-            reasons.append("This is a common phishing technique to make malicious URLs look legitimate")
-            reasons.append("Example: 'bank0famerica.com' is trying to mimic 'bankofamerica.com'")
-            return render_template("home.html", error=value, reasons=reasons)
-        
-        if model is None:
-            return render_template("home.html", error="Error: Model not loaded properly")
+        if xgb_model is None or rf_model is None:
+            return render_template("home.html", error="Error: One or more models not loaded properly")
         
         try:
             # Get features and make ML prediction
             data, phishing_reasons = feature_extractor.getAttributess(url)
             data = preprocess_data(data)
-            predicted_value = model.predict(data)
+            
+            # Get probabilities from both models
+            xgb_proba = xgb_model.predict_proba(data)[0]
+            rf_proba = rf_model.predict_proba(data)[0]
+            
+            # Calculate weighted probabilities (60% XGBoost, 40% Random Forest)
+            weighted_proba = (0.6 * xgb_proba) + (0.4 * rf_proba)
+            
+            # Print detailed probabilities in backend
+            print("\nModel Probabilities:")
+            print("-------------------")
+            print(f"XGBoost Model:")
+            print(f"  - Legitimate: {xgb_proba[0]*100:.1f}%")
+            print(f"  - Phishing: {xgb_proba[1]*100:.1f}%")
+            print(f"\nRandom Forest Model:")
+            print(f"  - Legitimate: {rf_proba[0]*100:.1f}%")
+            print(f"  - Phishing: {rf_proba[1]*100:.1f}%")
+            print(f"\nCombined Weighted Probability (60% XGBoost, 40% RF):")
+            print(f"  - Legitimate: {weighted_proba[0]*100:.1f}%")
+            print(f"  - Phishing: {weighted_proba[1]*100:.1f}%")
+            print("-------------------")
+            
+            # Get features for display
             features = data.iloc[0].to_dict()
             
-            # Determine final result based on ML prediction
-            is_phishing = False
-            confidence = "HIGH"
+            # Determine final result based on weighted probability
+            is_phishing = weighted_proba[1] > 0.5  # If probability of phishing > 0.5
+            confidence = "HIGH" if abs(weighted_proba[1] - 0.5) > 0.3 else "MEDIUM"
             trust_level = "HIGH" if is_trusted_domain(url) else "NORMAL"
-            
-            # If ML model predicts phishing, it's likely phishing
-            if predicted_value[0] == 1:
-                is_phishing = True
-                confidence = "HIGH"
             
             # Prepare the response
             if is_phishing:
                 value = f"⚠️ {confidence} RISK: This URL is Phishing"
                 # Combine all reasons for suspicious URLs, using set to prevent duplicates
                 reasons = set()
+                
+                # Add shortened URL information if applicable
+                if is_shortened:
+                    reasons.add(f"⚠️ WARNING: This is a shortened URL")
+                    reasons.add(f"Final destination: {final_url}")
                 
                 # Add domain trust information if applicable
                 if trust_level == "HIGH":
@@ -247,6 +360,11 @@ def getURL():
                 else:
                     value = "This URL is Legitimate"
                     reasons = []  # No reasons for legitimate URLs
+                
+                # Add shortened URL information even for legitimate URLs
+                if is_shortened:
+                    reasons.append(f"This is a shortened URL")
+                    reasons.append(f"Final destination: {final_url}")
             
             return render_template("home.html", error=value, reasons=reasons)
             

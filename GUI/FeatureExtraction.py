@@ -33,10 +33,8 @@ class FeatureExtraction:
         self.legitimate_domains = ['google', 'microsoft', 'apple', 'amazon', 'facebook']
         self.web_traffic_cache = {}
         self.url_shortener_cache = {}
-        self.whitelisted_banks = set()
         self.shortener = pyshorteners.Shortener()
         self._load_web_traffic_data()
-        self._load_whitelisted_banks()
 
     def _load_web_traffic_data(self):
         """Load web traffic data from Tranco dataset"""
@@ -55,28 +53,6 @@ class FeatureExtraction:
         except Exception as e:
             print(f"Error loading web traffic data: {str(e)}")
             self.web_traffic_data = pd.DataFrame(columns=['rank', 'domain'])
-
-    def _load_whitelisted_banks(self):
-        """Load whitelisted bank domains from file"""
-        try:
-            # Get the absolute path to the whitelist file
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.dirname(current_dir)
-            whitelist_path = os.path.join(project_root, 'raw_datasets', 'whitelist_banks.txt')
-            
-            # Open file with UTF-8 encoding and handle potential encoding errors
-            with open(whitelist_path, 'r', encoding='utf-8', errors='ignore') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):  # Skip empty lines and comments
-                        # Clean the line of any non-ASCII characters
-                        cleaned_line = ''.join(char for char in line if ord(char) < 128)
-                        if cleaned_line:  # Only add if there's content after cleaning
-                            self.whitelisted_banks.add(cleaned_line.lower())
-            print("Whitelisted banks loaded successfully")
-        except Exception as e:
-            print(f"Error loading whitelisted banks: {str(e)}")
-            self.whitelisted_banks = set()
 
     def _check_web_traffic(self, domain):
         """Check if domain has significant web traffic"""
@@ -149,15 +125,6 @@ class FeatureExtraction:
                     final_url = expanded_url
                     final_domain = urlparse(final_url).netloc.lower()
 
-                    # Check if final destination is in whitelist
-                    if self._is_whitelisted_bank(final_domain):
-                        return {
-                            'is_legitimate': True,
-                            'service': self._identify_shortener_service(domain),
-                            'final_url': final_url,
-                            'reasons': ['Final destination is a legitimate bank']
-                        }
-
                     # Check if final destination is suspicious
                     is_suspicious = False
                     reasons = []
@@ -220,15 +187,6 @@ class FeatureExtraction:
                     if final_url != url:
                         final_domain = urlparse(final_url).netloc.lower()
                         
-                        # Check if final destination is in whitelist
-                        if self._is_whitelisted_bank(final_domain):
-                            return {
-                                'is_legitimate': True,
-                                'service': self._identify_shortener_service(domain),
-                                'final_url': final_url,
-                                'reasons': ['Final destination is a legitimate bank']
-                            }
-
                         is_suspicious = False
                         reasons = []
 
@@ -446,58 +404,6 @@ class FeatureExtraction:
             
         return previous_row[-1]
 
-    def _is_whitelisted_bank(self, domain):
-        """Check if the domain is in our whitelist of legitimate banks"""
-        try:
-            # Remove www. if present
-            if domain.startswith('www.'):
-                domain = domain[4:]
-            
-            # Check if domain is in whitelist
-            return domain.lower() in self.whitelisted_banks
-        except:
-            return False
-
-    def _resolve_shortened_url(self, url):
-        """Resolve a shortened URL to its final destination"""
-        try:
-            # First check if the domain is suspicious
-            extracted = tldextract.extract(url)
-            if self._is_suspicious_subdomain(extracted.subdomain):
-                print(f"Suspicious subdomain detected: {extracted.subdomain}")
-                return url  # Return original URL if suspicious
-                
-            # Try direct HTTP request first
-            try:
-                response = requests.head(url, allow_redirects=True, timeout=5)
-                if response.url != url:
-                    return response.url
-            except requests.exceptions.RequestException as e:
-                print(f"HTTP expansion failed: {str(e)}")
-                # If HTTP request fails, it might be a suspicious domain
-                if "getaddrinfo failed" in str(e):
-                    return url  # Return original URL if domain doesn't exist
-            
-            # If HTTP request fails, try pyshorteners
-            try:
-                # Initialize shortener with all available services
-                shortener = pyshorteners.Shortener()
-                # Try each available service
-                for service in shortener.available_shorteners:
-                    try:
-                        expanded_url = getattr(shortener, service).expand(url)
-                        if expanded_url and expanded_url != url:
-                            return expanded_url
-                    except:
-                        continue
-            except Exception as e:
-                print(f"Pyshorteners expansion failed: {str(e)}")
-            
-            return url  # Return original URL if no expansion possible
-        except Exception as e:
-            print(f"Error resolving shortened URL: {str(e)}")
-            return url
-
     def _is_suspicious_subdomain(self, subdomain):
         """Dynamically check if a subdomain is suspicious using tldextract"""
         try:
@@ -645,25 +551,6 @@ class FeatureExtraction:
                 # Use the final URL for all subsequent checks
                 url = final_url
             
-            # Get domain for whitelist check
-            domain = urlparse(url).netloc
-            is_whitelisted = self._is_whitelisted_bank(domain)
-            
-            # If it's a whitelisted bank, mark as legitimate
-            if is_whitelisted:
-                features = {k: 0 for k in [
-                    'long_url', 'having_@_symbol', 'redirection_//_symbol',
-                    'prefix_suffix_seperation', 'sub_domains', 'having_ip_address',
-                    'https_token', 'web_traffic', 'domain_registration_length',
-                    'dns_record', 'age_of_domain', 'statistical_report',
-                    'shortening_service'
-                ]}
-                if is_shortened:
-                    phishing_reasons = [f"URL is shortened but final destination is a legitimate bank"]
-                else:
-                    phishing_reasons = []
-                return pd.DataFrame([features]), phishing_reasons
-            
             # Basic URL features
             features['long_url'] = 1 if len(url) > 54 else 0
             if features['long_url']:
@@ -727,11 +614,6 @@ class FeatureExtraction:
             features['statistical_report'] = 1 if self._is_suspicious_pattern(url) else 0
             if features['statistical_report']:
                 phishing_reasons.append("URL contains suspicious patterns")
-            
-            # Check for typo-squatting
-            typo_check = self.check_typo_squatting(url)
-            if typo_check['is_typo_squatting']:
-                phishing_reasons.append(f"⚠️ HIGH RISK: This appears to be a typo-squatting attempt")
             
             # Check for suspicious TLD
             if self.check_suspicious_tld(url):
@@ -820,140 +702,43 @@ class FeatureExtraction:
         except:
             return True  # If we can't check, assume suspicious
 
-    def check_typo_squatting(self, url):
-        """Check if the URL is a typo-squatting attempt"""
-        try:
-            domain = urlparse(url).netloc.lower()
-            # Remove www. if present
-            if domain.startswith('www.'):
-                domain = domain[4:]
-            
-            # Dictionary of known legitimate domains and their common typo-squatting variations
-            typo_squatting_domains = {
-                'google.com': ['gooogle.com', 'gogle.com', 'googl.com'],
-                'facebook.com': ['facebok.com', 'faceboook.com', 'facbook.com'],
-                'amazon.com': ['amazn.com', 'amazonn.com', 'amazoon.com'],
-                'apple.com': ['appl.com', 'applle.com', 'appel.com'],
-                'microsoft.com': ['microsft.com', 'microsoftt.com', 'microsof.com'],
-                'paypal.com': ['paypall.com', 'paypal.me', 'paypall.me'],
-                'netflix.com': ['netflx.com', 'netflixx.com', 'netfliix.com'],
-                'instagram.com': ['instagrm.com', 'instgram.com', 'instagrram.com'],
-                'twitter.com': ['twiter.com', 'twittr.com', 'twtter.com'],
-                'linkedin.com': ['linkdin.com', 'linkedinn.com', 'linkd.in'],
-                'youtube.com': ['youtub.com', 'youttube.com', 'youtubbe.com'],
-                'gmail.com': ['gmaiil.com', 'gmaill.com', 'gmial.com'],
-                'yahoo.com': ['yahooo.com', 'yaho.com', 'yahooo.com'],
-                'hotmail.com': ['hotmal.com', 'hotmaill.com', 'hotmial.com'],
-                'outlook.com': ['outlok.com', 'outlooook.com', 'outlok.com'],
-                'dropbox.com': ['dropbx.com', 'dropboxx.com', 'dropboks.com'],
-                'spotify.com': ['spotfy.com', 'spotifiy.com', 'spotiffy.com'],
-                'ebay.com': ['ebbay.com', 'eebay.com', 'ebayy.com'],
-                'walmart.com': ['wal-mart.com', 'walmartt.com', 'wal-martt.com'],
-                'target.com': ['targt.com', 'targget.com', 'targt.com'],
-                'bestbuy.com': ['best-buy.com', 'bestbuyy.com', 'best-buyy.com'],
-                'homedepot.com': ['home-depot.com', 'homedepott.com', 'home-depott.com'],
-                'lowes.com': ['lowess.com', 'lowes.com', 'lowess.com'],
-                'costco.com': ['costtco.com', 'costcoo.com', 'costtcoo.com'],
-                'macys.com': ['macyss.com', 'macys.com', 'macyss.com'],
-                'nordstrom.com': ['nordstromm.com', 'nordstrom.com', 'nordstromm.com'],
-                'gap.com': ['gapp.com', 'gapp.com', 'gapp.com'],
-                'oldnavy.com': ['oldnavvy.com', 'oldnavy.com', 'oldnavvy.com'],
-                'bananarepublic.com': ['bananarepublicc.com', 'bananarepublic.com', 'bananarepublicc.com'],
-                'athleta.com': ['athlettaa.com', 'athleta.com', 'athlettaa.com'],
-                'zara.com': ['zarra.com', 'zara.com', 'zarra.com'],
-                'h&m.com': ['h&mm.com', 'h&m.com', 'h&mm.com'],
-                'forever21.com': ['forever21.com', 'forever21.com', 'forever21.com'],
-                'american eagle.com': ['american eagle.com', 'american eagle.com', 'american eagle.com'],
-                'aeropostale.com': ['aeropostale.com', 'aeropostale.com', 'aeropostale.com'],
-                'express.com': ['expresss.com', 'express.com', 'expresss.com'],
-                'hollister.com': ['hollisterr.com', 'hollister.com', 'hollisterr.com'],
-                'abercrombie.com': ['abercrombiee.com', 'abercrombie.com', 'abercrombiee.com'],
-                'victoriassecret.com': ['victoriassecret.com', 'victoriassecret.com', 'victoriassecret.com'],
-                'pink.com': ['pinkk.com', 'pink.com', 'pinkk.com'],
-                'bathandbodyworks.com': ['bathandbodyworks.com', 'bathandbodyworks.com', 'bathandbodyworks.com'],
-                'sephora.com': ['sephoraa.com', 'sephora.com', 'sephoraa.com'],
-                'ulta.com': ['ultaa.com', 'ulta.com', 'ultaa.com'],
-                'macys.com': ['macyss.com', 'macys.com', 'macyss.com'],
-                'nordstrom.com': ['nordstromm.com', 'nordstrom.com', 'nordstromm.com'],
-                'gap.com': ['gapp.com', 'gapp.com', 'gapp.com'],
-                'oldnavy.com': ['oldnavvy.com', 'oldnavy.com', 'oldnavvy.com'],
-                'bananarepublic.com': ['bananarepublicc.com', 'bananarepublic.com', 'bananarepublicc.com'],
-                'athleta.com': ['athlettaa.com', 'athleta.com', 'athlettaa.com'],
-                'zara.com': ['zarra.com', 'zara.com', 'zarra.com'],
-                'h&m.com': ['h&mm.com', 'h&m.com', 'h&mm.com'],
-                'forever21.com': ['forever21.com', 'forever21.com', 'forever21.com'],
-                'american eagle.com': ['american eagle.com', 'american eagle.com', 'american eagle.com'],
-                'aeropostale.com': ['aeropostale.com', 'aeropostale.com', 'aeropostale.com'],
-                'express.com': ['expresss.com', 'express.com', 'expresss.com'],
-                'hollister.com': ['hollisterr.com', 'hollister.com', 'hollisterr.com'],
-                'abercrombie.com': ['abercrombiee.com', 'abercrombie.com', 'abercrombiee.com'],
-                'victoriassecret.com': ['victoriassecret.com', 'victoriassecret.com', 'victoriassecret.com'],
-                'pink.com': ['pinkk.com', 'pink.com', 'pinkk.com'],
-                'bathandbodyworks.com': ['bathandbodyworks.com', 'bathandbodyworks.com', 'bathandbodyworks.com'],
-                'sephora.com': ['sephoraa.com', 'sephora.com', 'sephoraa.com'],
-                'ulta.com': ['ultaa.com', 'ulta.com', 'ultaa.com'],
-                'nabilbank.com': ['nabilbankk.com', 'nabilbank.com', 'nabilbankk.com']
-            }
-            
-            # Check if the domain is a typo-squatting attempt
-            for legitimate_domain, variations in typo_squatting_domains.items():
-                if domain in variations:
-                    return {
-                        'is_typo_squatting': True,
-                        'company_name': legitimate_domain.split('.')[0].title(),
-                        'original_domain': f"https://www.{legitimate_domain}"
-                    }
-            
-            return {'is_typo_squatting': False}
-            
-        except Exception as e:
-            print(f"Error in check_typo_squatting: {str(e)}")
-            return {'is_typo_squatting': False}
-
     def check_suspicious_tld(self, url):
         """Check if the URL uses a suspicious TLD"""
         try:
-            tld = urlparse(url).netloc.split('.')[-1].lower()
+            domain = urlparse(url).netloc.lower()
+            tld = domain.split('.')[-1]
             return tld in self.suspicious_tlds
-        except:
+        except Exception as e:
+            print(f"Error in check_suspicious_tld: {str(e)}")
             return False
 
     def check_suspicious_domain(self, url):
         """Check if the domain contains suspicious patterns"""
         try:
             domain = urlparse(url).netloc.lower()
-            return any(suspicious in domain for suspicious in self.suspicious_domains)
-        except:
+            return any(pattern in domain for pattern in self.suspicious_domains)
+        except Exception as e:
+            print(f"Error in check_suspicious_domain: {str(e)}")
             return False
 
     def validate_url(self, url):
         """Validate and clean the URL"""
         try:
-            # Add scheme if missing
+            # Add http:// if not present
             if not url.startswith(('http://', 'https://')):
-                url = 'https://' + url
+                url = 'http://' + url
             
-            # Parse URL
+            # Parse the URL
             parsed = urlparse(url)
             
-            # Basic validation
-            if not parsed.netloc:
-                return False, "Invalid URL: No domain found"
+            # Check if the URL is valid
+            if not all([parsed.scheme, parsed.netloc]):
+                return False, "Invalid URL format. Please enter a valid URL."
             
-            if not parsed.scheme in ['http', 'https']:
-                return False, "Invalid URL: Only http and https schemes are allowed"
-            
-            # Clean URL
-            cleaned_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-            if parsed.query:
-                cleaned_url += f"?{parsed.query}"
-            if parsed.fragment:
-                cleaned_url += f"#{parsed.fragment}"
-            
-            return True, cleaned_url
-            
+            return True, url
         except Exception as e:
-            return False, f"Invalid URL: {str(e)}"
+            print(f"Error in validate_url: {str(e)}")
+            return False, "Invalid URL format. Please enter a valid URL."
 
     def _get_domain_age(self, domain):
         """Get domain age using python-whois"""
@@ -994,5 +779,45 @@ class FeatureExtraction:
         except Exception as e:
             print(f"WHOIS lookup error: {str(e)}")
             return None
+
+    def _resolve_shortened_url(self, url):
+        """Resolve a shortened URL to its final destination"""
+        try:
+            # First check if the domain is suspicious
+            extracted = tldextract.extract(url)
+            if self._is_suspicious_subdomain(extracted.subdomain):
+                print(f"Suspicious subdomain detected: {extracted.subdomain}")
+                return url  # Return original URL if suspicious
+                
+            # Try direct HTTP request first
+            try:
+                response = requests.head(url, allow_redirects=True, timeout=5)
+                if response.url != url:
+                    return response.url
+            except requests.exceptions.RequestException as e:
+                print(f"HTTP expansion failed: {str(e)}")
+                # If HTTP request fails, it might be a suspicious domain
+                if "getaddrinfo failed" in str(e):
+                    return url  # Return original URL if domain doesn't exist
+            
+            # If HTTP request fails, try pyshorteners
+            try:
+                # Initialize shortener with all available services
+                shortener = pyshorteners.Shortener()
+                # Try each available service
+                for service in shortener.available_shorteners:
+                    try:
+                        expanded_url = getattr(shortener, service).expand(url)
+                        if expanded_url and expanded_url != url:
+                            return expanded_url
+                    except:
+                        continue
+            except Exception as e:
+                print(f"Pyshorteners expansion failed: {str(e)}")
+            
+            return url  # Return original URL if no expansion possible
+        except Exception as e:
+            print(f"Error resolving shortened URL: {str(e)}")
+            return url
 
     
