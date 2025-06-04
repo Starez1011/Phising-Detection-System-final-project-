@@ -5,6 +5,7 @@ import warnings
 import xgboost as xgb
 import pandas as pd
 from urllib.parse import urlparse
+import os
 
 app = Flask(__name__, static_url_path='/static')
 
@@ -13,6 +14,14 @@ warnings.filterwarnings('ignore')
 
 # Create instances
 feature_extractor = FeatureExtraction.FeatureExtraction()
+
+def get_model_path(model_name):
+    """
+    Get the correct path for model files regardless of how the application is run
+    """
+    # Get the directory where the current file (app.py) is located
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(current_dir, model_name)
 
 # Load XGBoost model
 try:
@@ -24,7 +33,8 @@ try:
         tree_method='hist',  # Use histogram-based algorithm for better memory efficiency
         n_jobs=1  # Use single thread to reduce memory usage
     )
-    model.load_model('XGBoostModel_12000.sav')
+    model_path = get_model_path('XGBoostModel_12000.sav')
+    model.load_model(model_path)
     print("Model loaded successfully")
 except Exception as e:
     print(f"Error loading XGBoost model: {e}")
