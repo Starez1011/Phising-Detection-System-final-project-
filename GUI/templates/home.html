@@ -1,80 +1,73 @@
-{% extends 'layout.html'%}
-{% block title %}Web Phishing Detection{% endblock title %}
+{% extends 'layout.html'%} {% block title %}Web Phishing Detection{% endblock
+title %} {% block body %}
+<div class="flex flex-col items-center min-h-[80vh] py-8 sm:py-10 px-2">
+  <h1 class="text-3xl sm:text-5xl font-semibold text-gray-800 text-center mb-3">
+    Analyze a Website for Phishing Threats
+  </h1>
+  <p
+    class="text-base sm:text-lg text-gray-500 text-center mb-6 sm:mb-10 max-w-2xl"
+  >
+    Paste the URL below to detect if it's safe or potentially malicious.
+  </p>
 
-{% block body %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-body">
-                <h3 class="card-title text-center mb-4">
-                    <i class="fas fa-shield-alt text-primary me-2"></i>
-                    Real-time Phishing Detection
-                </h3>
-                
-                <p class="text-center text-muted mb-4">
-                    Enter a URL below to check if it's safe using our advanced machine learning algorithm
-                </p>
+  <form
+    method="POST"
+    action="{{url_for('getURL')}}"
+    class="flex flex-col md:flex-row items-center w-full max-w-3xl mb-6 sm:mb-8 gap-3 sm:gap-4 px-0 sm:px-2"
+  >
+    <input
+      class="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow text-base sm:text-lg border border-gray-200 focus:ring-2 focus:ring-blue-400 focus:outline-none font-sans placeholder-gray-400"
+      type="text"
+      name="url"
+      placeholder="e.g., https://example.com"
+      value="{{request.form.url}}"
+      required
+    />
+    <button
+      type="submit"
+      class="bg-[#0057FF] text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl shadow-lg font-medium text-base sm:text-lg hover:bg-blue-700 transition"
+    >
+      Scan URL
+    </button>
+  </form>
 
-                <form method="POST" action="{{url_for('getURL')}}">
-                    <div class="form-group mb-4">
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-link"></i>
-                            </span>
-                            <input class="form-control form-control-lg" 
-                                   type="text" 
-                                   name="url" 
-                                   placeholder="Enter complete URL (e.g., https://www.amazon.com)"
-                                   value="{{request.form.url}}" 
-                                   required>
-                        </div>
-                        <small class="form-text text-muted mt-2">
-                            Please enter a complete URL including the domain and TLD (e.g., amazon.com, www.google.com)
-                        </small>
-                    </div>
-
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-search me-2"></i>
-                            Check URL
-                        </button>
-                    </div>
-                </form>
-
-                {% if error %}
-                    <div class="mt-4">
-                        {% if error == 'This URL is Legitimate' %}
-                            <div class="alert alert-success" role="alert">
-                                <i class="fas fa-check-circle me-2"></i>
-                                <strong>{{error}}</strong>
-                            </div>
-                        {% else %}
-                            <div class="alert alert-danger" role="alert">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <strong>{{error}}</strong>
-                            </div>
-                        {% endif %}
-                    </div>
-                {% endif %}
-
-                {% if reasons %}
-                    <div class="mt-4">
-                        <h4 class="mb-3">
-                            <i class="fas fa-list-ul me-2"></i>
-                            Analysis Details
-                        </h4>
-                        <div class="list-group">
-                            {% for reason in reasons %}
-                                <div class="list-group-item list-group-item-action">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    {{ reason }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+  {% if error %}
+  <div
+    class="w-full max-w-4xl bg-white rounded-2xl shadow-lg p-6 sm:p-10 flex flex-col items-center mb-4"
+  >
+    {% if error == 'This URL is Legitimate' %}
+    <h2 class="text-2xl sm:text-4xl font-medium text-gray-800 text-center mb-2">
+      The website is <span class="font-semibold text-green-600">Safe.</span>
+    </h2>
+    <p class="text-gray-500 text-center text-base sm:text-lg">
+      This website appears legitimate with no signs of phishing detected.<br />You
+      may proceed safely, but always stay cautious online.
+    </p>
+    {% else %}
+    <h2 class="text-2xl sm:text-4xl font-medium text-gray-800 text-center mb-2">
+      The website is <span class="font-semibold text-red-600">Phishing!</span>
+    </h2>
+    <p class="text-gray-500 text-center text-base sm:text-lg">
+      Warning: This website has characteristics of a phishing site.<br />Do not
+      enter any sensitive information and leave immediately.
+    </p>
+    {% endif %}
+  </div>
+  {% endif %} {% if reasons %}
+  <div class="w-full max-w-4xl bg-gray-50 rounded-xl shadow p-4 sm:p-6 mt-2">
+    <h4
+      class="text-base sm:text-lg font-medium text-gray-800 mb-3 flex items-center justify-center"
+    >
+      <i class="fas fa-list-ul mr-2"></i>Analysis Details
+    </h4>
+    <ul class="space-y-2">
+      {% for reason in reasons %}
+      <li class="flex items-center text-gray-700 text-sm sm:text-base">
+        <i class="fas fa-info-circle text-gray-400 mr-2"></i>{{ reason }}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 </div>
 {% endblock body %}

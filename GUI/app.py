@@ -150,11 +150,15 @@ def preprocess_data(data):
 
 @app.route('/')
 def index():
-    return render_template("home.html")
+    return render_template("landing.html")
 
 @app.route('/about')
 def about():
     return render_template("about.html")
+
+@app.route('/detectURL')
+def detectURL():
+    return render_template("home.html")
 
 def get_reasons(features):
     reasons = []
