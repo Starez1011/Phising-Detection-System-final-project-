@@ -542,14 +542,19 @@ class FeatureExtraction:
             
             # Check if it's a shortened URL and resolve it
             original_url = url
+            original_domain = domain
             final_url = self._resolve_shortened_url(url)
-            is_shortened = final_url != original_url
+            final_domain = tldextract.extract(final_url).registered_domain
+            
+            # Only consider it shortened/redirected if the final domain is different
+            is_shortened = final_domain != original_domain
             
             if is_shortened:
-                print(f"Shortened URL detected. Original: {original_url}")
+                print(f"Shortened/Redirected URL detected. Original: {original_url}")
                 print(f"Final destination: {final_url}")
                 # Use the final URL for all subsequent checks
                 url = final_url
+                domain = final_domain
             
             # Basic URL features
             features['long_url'] = 1 if len(url) > 54 else 0
@@ -561,10 +566,10 @@ class FeatureExtraction:
             if features['having_@_symbol']:
                 phishing_reasons.append("URL contains @ symbol (high risk)")
             
-            # Check for redirection
-            features['redirection_//_symbol'] = 1 if '//' in url[8:] else 0
+            # Check for redirection - only if domains are different
+            features['redirection_//_symbol'] = 1 if is_shortened else 0
             if features['redirection_//_symbol']:
-                phishing_reasons.append("URL contains suspicious redirection")
+                phishing_reasons.append("URL redirects to a different domain")
             
             # Check for prefix-suffix separation
             features['prefix_suffix_seperation'] = 1 if '-' in domain and len(domain.split('-')) > 2 else 0
@@ -582,7 +587,7 @@ class FeatureExtraction:
             if features['having_ip_address']:
                 phishing_reasons.append("URL contains IP address (high risk)")
             
-            # Check for HTTPS token
+            # Check for HTTPS token - only if it's in the domain itself, not the protocol
             features['https_token'] = 1 if 'https' in domain else 0
             if features['https_token']:
                 phishing_reasons.append("Domain contains 'https' (suspicious)")
@@ -623,10 +628,10 @@ class FeatureExtraction:
             if self.check_suspicious_domain(url):
                 phishing_reasons.append("WARNING: This domain contains suspicious patterns that may indicate phishing")
             
-            # Mark if it was a shortened URL
+            # Mark if it was a shortened URL - only if domains are different
             features['shortening_service'] = 1 if is_shortened else 0
             if is_shortened:
-                phishing_reasons.append(f"URL is shortened. Original: {original_url}")
+                phishing_reasons.append(f"URL redirects to a different domain. Original: {original_url}")
                 phishing_reasons.append(f"Final destination: {final_url}")
             
             return pd.DataFrame([features]), phishing_reasons
@@ -792,8 +797,27 @@ class FeatureExtraction:
             # Try direct HTTP request first
             try:
                 response = requests.head(url, allow_redirects=True, timeout=5)
-                if response.url != url:
-                    return response.url
+                final_url = response.url
+                
+                # Normalize URLs for comparison
+                original_url = url.rstrip('/')
+                final_url = final_url.rstrip('/')
+                
+                # If the only difference is http vs https, return original URL
+                if original_url.replace('http://', 'https://') == final_url or \
+                   final_url.replace('https://', 'http://') == original_url:
+                    return url
+                
+                # If the only difference is a trailing slash, return original URL
+                if original_url.rstrip('/') == final_url.rstrip('/'):
+                    return url
+                
+                # If URLs are exactly the same after normalization, return original URL
+                if original_url == final_url:
+                    return url
+                
+                if final_url != url:
+                    return final_url
             except requests.exceptions.RequestException as e:
                 print(f"HTTP expansion failed: {str(e)}")
                 # If HTTP request fails, it might be a suspicious domain
@@ -809,6 +833,23 @@ class FeatureExtraction:
                     try:
                         expanded_url = getattr(shortener, service).expand(url)
                         if expanded_url and expanded_url != url:
+                            # Normalize URLs for comparison
+                            original_url = url.rstrip('/')
+                            expanded_url = expanded_url.rstrip('/')
+                            
+                            # If the only difference is http vs https, return original URL
+                            if original_url.replace('http://', 'https://') == expanded_url or \
+                               expanded_url.replace('https://', 'http://') == original_url:
+                                return url
+                            
+                            # If the only difference is a trailing slash, return original URL
+                            if original_url.rstrip('/') == expanded_url.rstrip('/'):
+                                return url
+                                
+                            # If URLs are exactly the same after normalization, return original URL
+                            if original_url == expanded_url:
+                                return url
+                                
                             return expanded_url
                     except:
                         continue

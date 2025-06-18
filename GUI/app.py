@@ -268,11 +268,29 @@ def getURL():
             response = requests.head(url, allow_redirects=True, timeout=10)
             final_url = response.url
             
-            # If the URL is different, it was a redirect
-            is_shortened = final_url != original_url
+            # Normalize URLs for comparison
+            original_url = url.rstrip('/')
+            final_url = final_url.rstrip('/')
+            
+            # If the only difference is http vs https, don't consider it shortened
+            if original_url.replace('http://', 'https://') == final_url or \
+               final_url.replace('https://', 'http://') == original_url:
+                is_shortened = False
+                final_url = url
+            # If the only difference is a trailing slash, don't consider it shortened
+            elif original_url.rstrip('/') == final_url.rstrip('/'):
+                is_shortened = False
+                final_url = url
+            # If URLs are exactly the same after normalization, don't consider it shortened
+            elif original_url == final_url:
+                is_shortened = False
+                final_url = url
+            # Otherwise, if URLs are different, it was a redirect
+            else:
+                is_shortened = final_url != original_url
             
             if is_shortened:
-                print(f"Shortened URL detected. Original: {original_url}")
+                print(f"Shortened/Redirected URL detected. Original: {original_url}")
                 print(f"Final destination: {final_url}")
                 # Use the final URL for all subsequent checks
                 url = final_url
@@ -291,13 +309,31 @@ def getURL():
             # If direct resolution fails, try using pyshorteners
             try:
                 shortener = pyshorteners.Shortener()
-                final_url = shortener.expand(url)
-                if final_url and final_url != url:
-                    is_shortened = True
-                    print(f"Shortened URL detected via pyshorteners. Original: {original_url}")
-                    print(f"Final destination: {final_url}")
-                    url = final_url
-                    redirect_domain = urlparse(final_url).netloc.lower()
+                expanded_url = shortener.expand(url)
+                if expanded_url and expanded_url != url:
+                    # Normalize URLs for comparison
+                    original_url = url.rstrip('/')
+                    expanded_url = expanded_url.rstrip('/')
+                    
+                    # If the only difference is http vs https, don't consider it shortened
+                    if original_url.replace('http://', 'https://') == expanded_url or \
+                       expanded_url.replace('https://', 'http://') == original_url:
+                        is_shortened = False
+                        final_url = url
+                    # If the only difference is a trailing slash, don't consider it shortened
+                    elif original_url.rstrip('/') == expanded_url.rstrip('/'):
+                        is_shortened = False
+                        final_url = url
+                    # If URLs are exactly the same after normalization, don't consider it shortened
+                    elif original_url == expanded_url:
+                        is_shortened = False
+                        final_url = url
+                    else:
+                        is_shortened = True
+                        print(f"Shortened URL detected via pyshorteners. Original: {original_url}")
+                        print(f"Final destination: {expanded_url}")
+                        url = expanded_url
+                        redirect_domain = urlparse(expanded_url).netloc.lower()
             except Exception as e:
                 print(f"Error using pyshorteners: {str(e)}")
                 # If both methods fail, proceed with original URL
@@ -363,16 +399,6 @@ def getURL():
             # Calculate weighted probabilities (60% XGBoost, 40% Random Forest)
             weighted_proba = (0.6 * xgb_proba) + (0.4 * rf_proba)
             
-            # Adjust probability based on suspicious redirects
-            if suspicious_redirect:
-                # Increase phishing probability by 40% (but cap at 0.95)
-                weighted_proba[1] = min(0.95, weighted_proba[1] + 0.4)
-                weighted_proba[0] = 1 - weighted_proba[1]
-                
-                print("\nAdjusted Probabilities (after suspicious redirect detection):")
-                print(f"  - Legitimate: {weighted_proba[0]*100:.1f}%")
-                print(f"  - Phishing: {weighted_proba[1]*100:.1f}%")
-            
             # Print detailed probabilities in backend
             print("\nModel Probabilities:")
             print("-------------------")
@@ -391,7 +417,7 @@ def getURL():
             features = data.iloc[0].to_dict()
             
             # Determine final result based on weighted probability
-            is_phishing = weighted_proba[1] > 0.5  # If probability of phishing > 0.5
+            is_phishing = weighted_proba[1] > 0.5
             confidence = "HIGH" if abs(weighted_proba[1] - 0.5) > 0.3 else "MEDIUM"
             trust_level = "HIGH" if is_trusted_domain(url) else "NORMAL"
             
