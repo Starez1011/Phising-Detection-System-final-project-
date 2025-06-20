@@ -11,6 +11,7 @@ from requests.exceptions import RequestException, SSLError, ConnectionError, Tim
 import socket
 import urllib3
 import pyshorteners
+import tldextract
 
 app = Flask(__name__, static_url_path='/static')
 
@@ -261,28 +262,16 @@ def getURL():
         try:
             response = requests.head(url, allow_redirects=True, timeout=10)
             final_url = response.url
-            # Normalize URLs for comparison
-            original_url_norm = url.rstrip('/')
-            final_url_norm = final_url.rstrip('/')
-            # If the only difference is http vs https, don't consider it shortened
-            if original_url_norm.replace('http://', 'https://') == final_url_norm or \
-               final_url_norm.replace('https://', 'http://') == original_url_norm:
-                is_shortened = False
+            # Extract registered domains for comparison
+            original_domain = tldextract.extract(url).registered_domain
+            final_domain = tldextract.extract(final_url).registered_domain
+            is_shortened = final_domain != original_domain
+            # If not shortened, keep final_url as url
+            if not is_shortened:
                 final_url = url
-            # If the only difference is a trailing slash, don't consider it shortened
-            elif original_url_norm.rstrip('/') == final_url_norm.rstrip('/'):
-                is_shortened = False
-                final_url = url
-            # If URLs are exactly the same after normalization, don't consider it shortened
-            elif original_url_norm == final_url_norm:
-                is_shortened = False
-                final_url = url
-            # Otherwise, if URLs are different, it was a redirect
-            else:
-                is_shortened = final_url_norm != original_url_norm
             if is_shortened:
-                print(f"Shortened/Redirected URL detected. Original: {original_url}")
-                print(f"Final destination: {final_url}")
+                print(f"Shortened/Redirected URL detected. Original: {original_domain}")
+                print(f"Final destination: {final_domain}")
                 url = final_url
                 redirect_domain = urlparse(final_url).netloc.lower()
         except Exception as e:
@@ -298,28 +287,19 @@ def getURL():
                     except Exception:
                         continue
                 if expanded_url and expanded_url != url:
-                    # Normalize URLs for comparison
-                    original_url = url.rstrip('/')
-                    expanded_url = expanded_url.rstrip('/')
-                    # If the only difference is http vs https, don't consider it shortened
-                    if original_url.replace('http://', 'https://') == expanded_url or \
-                       expanded_url.replace('https://', 'http://') == original_url:
-                        is_shortened = False
-                        final_url = url
-                    # If the only difference is a trailing slash, don't consider it shortened
-                    elif original_url.rstrip('/') == expanded_url.rstrip('/'):
-                        is_shortened = False
-                        final_url = url
-                    # If URLs are exactly the same after normalization, don't consider it shortened
-                    elif original_url == expanded_url:
-                        is_shortened = False
+                    # Extract registered domains for comparison
+                    original_domain = tldextract.extract(url).registered_domain
+                    expanded_domain = tldextract.extract(expanded_url).registered_domain
+                    is_shortened = expanded_domain != original_domain
+                    # If not shortened, keep final_url as url
+                    if not is_shortened:
                         final_url = url
                     else:
-                        is_shortened = True
-                        print(f"Shortened URL detected via pyshorteners. Original: {original_url}")
-                        print(f"Final destination: {expanded_url}")
-                        url = expanded_url
                         final_url = expanded_url
+                    if is_shortened:
+                        print(f"Shortened URL detected via pyshorteners. Original: {original_domain}")
+                        print(f"Final destination: {expanded_domain}")
+                        url = expanded_url
                         redirect_domain = urlparse(expanded_url).netloc.lower()
             except Exception as e:
                 print(f"Error using pyshorteners: {str(e)}")
@@ -335,11 +315,11 @@ def getURL():
         # weighted_proba = (0.6 * xgb_proba) + (0.4 * rf_proba)
         weighted_proba = xgb_proba
         # Print detailed probabilities in backend
-        print("\nModel Probabilities:")
-        print("-------------------")
-        print(f"XGBoost Model:")
-        print(f"  - Legitimate: {xgb_proba[0]*100:.1f}%")
-        print(f"  - Phishing: {xgb_proba[1]*100:.1f}%")
+        # print("\nModel Probabilities:")
+        # print("-------------------")
+        # print(f"XGBoost Model:")
+        # print(f"  - Legitimate: {xgb_proba[0]*100:.1f}%")
+        # print(f"  - Phishing: {xgb_proba[1]*100:.1f}%")
         # print(f"\nRandom Forest Model:")
         # print(f"  - Legitimate: {rf_proba[0]*100:.1f}%")
         # print(f"  - Phishing: {rf_proba[1]*100:.1f}%")

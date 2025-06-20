@@ -519,14 +519,38 @@ class FeatureExtraction:
             features = {}
             phishing_reasons = []
             
-            # Get domain for validation using tldextract
-            extracted = tldextract.extract(url)
-            domain = f"{extracted.subdomain}.{extracted.domain}.{extracted.suffix}" if extracted.subdomain else f"{extracted.domain}.{extracted.suffix}"
+            # Always extract registered domain and subdomain for original and final URLs
+            orig_ext = tldextract.extract(url)
+            original_registered_domain = orig_ext.registered_domain
+            original_subdomain = orig_ext.subdomain
+            original_full_domain = f"{original_subdomain}.{original_registered_domain}" if original_subdomain else original_registered_domain
             
-            # Check for suspicious subdomains in trusted domains
-            if not self._validate_trusted_domain(domain):
-                phishing_reasons.append("⚠️ HIGH RISK: Suspicious subdomain detected in trusted domain")
-                # Set all features to indicate phishing
+            final_url = self._resolve_shortened_url(url)
+            final_ext = tldextract.extract(final_url)
+            final_registered_domain = final_ext.registered_domain
+            final_subdomain = final_ext.subdomain
+            final_full_domain = f"{final_subdomain}.{final_registered_domain}" if final_subdomain else final_registered_domain
+            
+            # Detect redirect/shortening if registered domain changes or subdomain changes (excluding www)
+            def normalize_subdomain(sub):
+                return sub if sub and sub != 'www' else ''
+            orig_norm_sub = normalize_subdomain(original_subdomain)
+            final_norm_sub = normalize_subdomain(final_subdomain)
+            is_shortened = (final_registered_domain != original_registered_domain) or (orig_norm_sub != final_norm_sub)
+            
+            if is_shortened:
+                print(f"Shortened/Redirected URL detected. Original: {original_registered_domain}")
+                print(f"Final destination: {final_registered_domain}")
+                url = final_url
+                domain = final_full_domain
+                subdomain = final_subdomain
+            else:
+                domain = original_full_domain
+                subdomain = original_subdomain
+            
+            # Always check for suspicious subdomains (not just for trusted TLDs)
+            if subdomain and self._is_suspicious_subdomain(subdomain):
+                phishing_reasons.append("⚠️ HIGH RISK: Suspicious subdomain detected")
                 features = {k: 1 for k in [
                     'long_url', 'having_@_symbol', 'redirection_//_symbol',
                     'prefix_suffix_seperation', 'sub_domains', 'having_ip_address',
@@ -537,24 +561,7 @@ class FeatureExtraction:
                 print("⚠️ HIGH RISK: URL classified as phishing due to suspicious subdomain")
                 return pd.DataFrame([features]), phishing_reasons
             
-            # If we get here, the domain is valid and not suspicious
             features['suspicious_subdomain'] = 0
-            
-            # Check if it's a shortened URL and resolve it
-            original_url = url
-            original_domain = domain
-            final_url = self._resolve_shortened_url(url)
-            final_domain = tldextract.extract(final_url).registered_domain
-            
-            # Only consider it shortened/redirected if the final domain is different
-            is_shortened = final_domain != original_domain
-            
-            if is_shortened:
-                print(f"Shortened/Redirected URL detected. Original: {original_url}")
-                print(f"Final destination: {final_url}")
-                # Use the final URL for all subsequent checks
-                url = final_url
-                domain = final_domain
             
             # Basic URL features
             features['long_url'] = 1 if len(url) > 54 else 0
@@ -566,21 +573,21 @@ class FeatureExtraction:
             if features['having_@_symbol']:
                 phishing_reasons.append("URL contains @ symbol (high risk)")
             
-            # Check for redirection - only if domains are different
+            # Check for redirection - only if registered domains are different
             features['redirection_//_symbol'] = 1 if is_shortened else 0
             
-            # Check for prefix-suffix separation
+            # Check for prefix-suffix separation (use full domain)
             features['prefix_suffix_seperation'] = 1 if '-' in domain and len(domain.split('-')) > 1 else 0
             if features['prefix_suffix_seperation']:
                 phishing_reasons.append("Domain contains multiple hyphens")
             
-            # Check subdomains
+            # Check subdomains (use full domain)
             subdomain_count = len(domain.split('.'))
             features['sub_domains'] = 1 if subdomain_count > 4 else 0
             if features['sub_domains']:
                 phishing_reasons.append("URL has excessive subdomains")
             
-            # Check for IP address
+            # Check for IP address (use full domain)
             features['having_ip_address'] = 1 if self._is_ip_address(domain) else 0
             if features['having_ip_address']:
                 phishing_reasons.append("URL contains IP address (high risk)")
@@ -590,25 +597,25 @@ class FeatureExtraction:
             if features['https_token']:
                 phishing_reasons.append("Domain contains 'https' (suspicious)")
             
-            # Check web traffic
-            has_traffic = self._check_web_traffic(domain)
+            # Check web traffic (use registered domain)
+            has_traffic = self._check_web_traffic(final_registered_domain if is_shortened else original_registered_domain)
             features['web_traffic'] = 0 if has_traffic else 1
             if not has_traffic:
                 phishing_reasons.append("Domain has suspicious patterns or no significant web traffic")
             
-            # Check domain registration length
-            reg_length = self._get_domain_registration_length(domain)
+            # Check domain registration length (use registered domain)
+            reg_length = self._get_domain_registration_length(final_registered_domain if is_shortened else original_registered_domain)
             features['domain_registration_length'] = 1 if reg_length and reg_length < 365 else 0
             if features['domain_registration_length']:
                 phishing_reasons.append("Domain registration period is less than 1 year")
             
-            # Check DNS record
-            features['dns_record'] = 1 if not self._has_dns_record(domain) else 0
+            # Check DNS record (use registered domain)
+            features['dns_record'] = 1 if not self._has_dns_record(final_registered_domain if is_shortened else original_registered_domain) else 0
             if features['dns_record']:
                 phishing_reasons.append("No DNS record found")
             
-            # Check domain age
-            age = self._get_domain_age(domain)
+            # Check domain age (use registered domain)
+            age = self._get_domain_age(final_registered_domain if is_shortened else original_registered_domain)
             features['age_of_domain'] = 1 if age and age < 180 else 0
             if features['age_of_domain']:
                 phishing_reasons.append("Domain is less than 6 months old")
@@ -626,13 +633,12 @@ class FeatureExtraction:
             if self.check_suspicious_domain(url):
                 phishing_reasons.append("WARNING: This domain contains suspicious patterns that may indicate phishing")
             
-            # Mark if it was a shortened URL - only if domains are different
+            # Mark if it was a shortened URL - only if registered domains are different
             features['shortening_service'] = 1 if is_shortened else 0
             if is_shortened:
                 phishing_reasons.append(f"Final destination: {final_url}")
             
             return pd.DataFrame([features]), phishing_reasons
-            
         except Exception as e:
             print(f"Error in getAttributess: {str(e)}")
             return None, [f"Error processing URL: {str(e)}"]
@@ -785,34 +791,23 @@ class FeatureExtraction:
     def _resolve_shortened_url(self, url):
         """Resolve a shortened URL to its final destination"""
         try:
-            # First check if the domain is suspicious
-            extracted = tldextract.extract(url)
-            if self._is_suspicious_subdomain(extracted.subdomain):
-                print(f"Suspicious subdomain detected: {extracted.subdomain}")
-                return url  # Return original URL if suspicious
-                
-            # Try direct HTTP request first
+            # Always try to resolve the final destination, regardless of the shortener's subdomain
             try:
                 response = requests.head(url, allow_redirects=True, timeout=5)
                 final_url = response.url
-                
                 # Normalize URLs for comparison
                 original_url = url.rstrip('/')
                 final_url = final_url.rstrip('/')
-                
                 # If the only difference is http vs https, return original URL
                 if original_url.replace('http://', 'https://') == final_url or \
                    final_url.replace('https://', 'http://') == original_url:
                     return url
-                
                 # If the only difference is a trailing slash, return original URL
                 if original_url.rstrip('/') == final_url.rstrip('/'):
                     return url
-                
                 # If URLs are exactly the same after normalization, return original URL
                 if original_url == final_url:
                     return url
-                
                 if final_url != url:
                     return final_url
             except requests.exceptions.RequestException as e:
@@ -820,7 +815,6 @@ class FeatureExtraction:
                 # If HTTP request fails, it might be a suspicious domain
                 if "getaddrinfo failed" in str(e):
                     return url  # Return original URL if domain doesn't exist
-            
             # If HTTP request fails, try pyshorteners
             try:
                 # Initialize shortener with all available services
@@ -833,26 +827,21 @@ class FeatureExtraction:
                             # Normalize URLs for comparison
                             original_url = url.rstrip('/')
                             expanded_url = expanded_url.rstrip('/')
-                            
                             # If the only difference is http vs https, return original URL
                             if original_url.replace('http://', 'https://') == expanded_url or \
                                expanded_url.replace('https://', 'http://') == original_url:
                                 return url
-                            
                             # If the only difference is a trailing slash, return original URL
                             if original_url.rstrip('/') == expanded_url.rstrip('/'):
                                 return url
-                                
                             # If URLs are exactly the same after normalization, return original URL
                             if original_url == expanded_url:
                                 return url
-                                
                             return expanded_url
                     except:
                         continue
             except Exception as e:
                 print(f"Pyshorteners expansion failed: {str(e)}")
-            
             return url  # Return original URL if no expansion possible
         except Exception as e:
             print(f"Error resolving shortened URL: {str(e)}")
