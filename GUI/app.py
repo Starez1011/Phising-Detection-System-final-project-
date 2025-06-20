@@ -106,14 +106,14 @@ except Exception as e:
     xgb_model = None
 
 # Load Random Forest model
-try:
-    rf_model_path = get_model_path('RFmodel_12000.sav')
-    with open(rf_model_path, 'rb') as f:
-        rf_model = pickle.load(f)
-    print("Random Forest model loaded successfully")
-except Exception as e:
-    print(f"Error loading Random Forest model: {e}")
-    rf_model = None
+# try:
+#     rf_model_path = get_model_path('RFmodel_12000.sav')
+#     with open(rf_model_path, 'rb') as f:
+#         rf_model = pickle.load(f)
+#     print("Random Forest model loaded successfully")
+# except Exception as e:
+#     print(f"Error loading Random Forest model: {e}")
+#     rf_model = None
 
 def preprocess_data(data):
     """Preprocess the data to match model's expected format"""
@@ -244,77 +244,63 @@ def is_trusted_domain(url):
 @app.route('/getURL', methods=['GET', 'POST'])
 def getURL():
     if request.method == 'POST':
+        reasons = []  # Always initialize reasons
         url = request.form['url']
         print(f"\nProcessing URL: {url}")
-        
         # Validate URL first
         is_valid, result = feature_extractor.validate_url(url)
         if not is_valid:
             return render_template("home.html", error="Invalid URL", reasons=[result])
-        
-        # Use the validated URL
         url = result
         print(f"Validated URL: {url}")
-        
-        # Check if it's a shortened URL and resolve it
         original_url = url
         final_url = None
         is_shortened = False
         suspicious_redirect = False
         redirect_domain = None
-        
         try:
-            # First try to resolve using requests with redirects
             response = requests.head(url, allow_redirects=True, timeout=10)
             final_url = response.url
-            
             # Normalize URLs for comparison
-            original_url = url.rstrip('/')
-            final_url = final_url.rstrip('/')
-            
+            original_url_norm = url.rstrip('/')
+            final_url_norm = final_url.rstrip('/')
             # If the only difference is http vs https, don't consider it shortened
-            if original_url.replace('http://', 'https://') == final_url or \
-               final_url.replace('https://', 'http://') == original_url:
+            if original_url_norm.replace('http://', 'https://') == final_url_norm or \
+               final_url_norm.replace('https://', 'http://') == original_url_norm:
                 is_shortened = False
                 final_url = url
             # If the only difference is a trailing slash, don't consider it shortened
-            elif original_url.rstrip('/') == final_url.rstrip('/'):
+            elif original_url_norm.rstrip('/') == final_url_norm.rstrip('/'):
                 is_shortened = False
                 final_url = url
             # If URLs are exactly the same after normalization, don't consider it shortened
-            elif original_url == final_url:
+            elif original_url_norm == final_url_norm:
                 is_shortened = False
                 final_url = url
             # Otherwise, if URLs are different, it was a redirect
             else:
-                is_shortened = final_url != original_url
-            
+                is_shortened = final_url_norm != original_url_norm
             if is_shortened:
                 print(f"Shortened/Redirected URL detected. Original: {original_url}")
                 print(f"Final destination: {final_url}")
-                # Use the final URL for all subsequent checks
                 url = final_url
                 redirect_domain = urlparse(final_url).netloc.lower()
-                
         except Exception as e:
             print(f"Error resolving shortened URL: {str(e)}")
-            # Extract the domain from the error message if possible
-            error_str = str(e)
-            if "host='" in error_str and "'" in error_str.split("host='")[1]:
-                redirect_domain = error_str.split("host='")[1].split("'")[0].lower()
-                is_shortened = True
-                final_url = f"https://{redirect_domain}"
-                print(f"Detected redirect domain from error: {redirect_domain}")
-            
-            # If direct resolution fails, try using pyshorteners
             try:
                 shortener = pyshorteners.Shortener()
-                expanded_url = shortener.expand(url)
+                expanded_url = None
+                for service in shortener.available_shorteners:
+                    try:
+                        expanded_url = getattr(shortener, service).expand(url)
+                        if expanded_url and expanded_url != url:
+                            break
+                    except Exception:
+                        continue
                 if expanded_url and expanded_url != url:
                     # Normalize URLs for comparison
                     original_url = url.rstrip('/')
                     expanded_url = expanded_url.rstrip('/')
-                    
                     # If the only difference is http vs https, don't consider it shortened
                     if original_url.replace('http://', 'https://') == expanded_url or \
                        expanded_url.replace('https://', 'http://') == original_url:
@@ -333,167 +319,73 @@ def getURL():
                         print(f"Shortened URL detected via pyshorteners. Original: {original_url}")
                         print(f"Final destination: {expanded_url}")
                         url = expanded_url
+                        final_url = expanded_url
                         redirect_domain = urlparse(expanded_url).netloc.lower()
             except Exception as e:
                 print(f"Error using pyshorteners: {str(e)}")
-                # If both methods fail, proceed with original URL
                 if not redirect_domain:
                     is_shortened = False
                     final_url = url
-        
-        # Check for suspicious patterns in the redirect domain
-        if redirect_domain:
+        # At this point, url is set to the final destination if there was a redirect/shortener
+        # Only run ML and feature extraction on the final destination
+        data, phishing_reasons = feature_extractor.getAttributess(url)
+        data = preprocess_data(data)
+        xgb_proba = xgb_model.predict_proba(data)[0]
+        # rf_proba = rf_model.predict_proba(data)[0]
+        # weighted_proba = (0.6 * xgb_proba) + (0.4 * rf_proba)
+        weighted_proba = xgb_proba
+        # Print detailed probabilities in backend
+        print("\nModel Probabilities:")
+        print("-------------------")
+        print(f"XGBoost Model:")
+        print(f"  - Legitimate: {xgb_proba[0]*100:.1f}%")
+        print(f"  - Phishing: {xgb_proba[1]*100:.1f}%")
+        # print(f"\nRandom Forest Model:")
+        # print(f"  - Legitimate: {rf_proba[0]*100:.1f}%")
+        # print(f"  - Phishing: {rf_proba[1]*100:.1f}%")
+        # print(f"\nCombined Weighted Probability (60% XGBoost, 40% RF):")
+        # print(f"  - Legitimate: {weighted_proba[0]*100:.1f}%")
+        # print(f"  - Phishing: {weighted_proba[1]*100:.1f}%")
+        print("-------------------")
+        # Change threshold: legitimate only if > 57%
+        # is_legitimate = weighted_proba[0] > 0.57
+        is_legitimate = xgb_proba[0] > 0.57
+        is_phishing = not is_legitimate
+        confidence = "HIGH" if abs(weighted_proba[1] - 0.5) > 0.3 else "MEDIUM"
+        trust_level = "HIGH" if is_trusted_domain(url) else "NORMAL"
+        value = None
+        if is_shortened and redirect_domain:
             suspicious_keywords = [
                 'login', 'signin', 'sign-in', 'account', 'secure', 'verify', 'confirm',
                 'update', 'validate', 'security', 'password', 'bank', 'paypal', 'amazon',
-                'ebay', 'apple', 'microsoft', 'google', 'facebook', 'twitter', 'instagram'
+                'ebay', 'apple', 'microsoft', 'google', 'facebook', 'twitter', 'instagram','free','free-url','shortener'
             ]
             suspicious_redirect = any(keyword in redirect_domain for keyword in suspicious_keywords)
-            
-            if suspicious_redirect:
-                print(f"\nSuspicious redirect detected to domain containing: {[k for k in suspicious_keywords if k in redirect_domain]}")
-        
-        # Check URL connectivity
-        is_accessible, connectivity_message = check_url_connectivity(url)
-        if not is_accessible:
-            # Store the connectivity message to show later
-            if suspicious_redirect:
-                detected_patterns = [k for k in suspicious_keywords if k in redirect_domain]
-                pattern_text = " and ".join(detected_patterns)
-                
-                # Build warning message dynamically
-                warning_parts = []
-                warning_parts.append("⚠️ HIGH RISK: This is a phishing attempt!")
-                warning_parts.append(f"• Redirects to a suspicious {pattern_text}")
-                warning_parts.append(f"• Website is inaccessible (common in phishing)")
-                warning_parts.append(f"• Uses URL shortener to hide destination")
-                
-                connectivity_warning = "\n".join(warning_parts)
-            else:
-                # Build general warning message dynamically
-                warning_parts = []
-                warning_parts.append("⚠️ WARNING: This website is currently inaccessible.")
-                warning_parts.append(f"🔗 Original link: {original_url}")
-                warning_parts.append(f"🎯 Attempted destination: {final_url}")
-                warning_parts.append("💡 This could be due to:")
-                warning_parts.append("• The website being temporarily down")
-                warning_parts.append("• The website no longer existing")
-                warning_parts.append("• Network connectivity issues")
-                
-                connectivity_warning = "\n\n".join(warning_parts)
-        else:
-            connectivity_warning = None
-        
-        if xgb_model is None or rf_model is None:
-            return render_template("home.html", error="Error: One or more models not loaded properly")
-        
-        try:
-            # Get features and make ML prediction
-            data, phishing_reasons = feature_extractor.getAttributess(url)
-            data = preprocess_data(data)
-            
-            # Get probabilities from both models
-            xgb_proba = xgb_model.predict_proba(data)[0]
-            rf_proba = rf_model.predict_proba(data)[0]
-            
-            # Calculate weighted probabilities (60% XGBoost, 40% Random Forest)
-            weighted_proba = (0.6 * xgb_proba) + (0.4 * rf_proba)
-            
-            # Print detailed probabilities in backend
-            print("\nModel Probabilities:")
-            print("-------------------")
-            print(f"XGBoost Model:")
-            print(f"  - Legitimate: {xgb_proba[0]*100:.1f}%")
-            print(f"  - Phishing: {xgb_proba[1]*100:.1f}%")
-            print(f"\nRandom Forest Model:")
-            print(f"  - Legitimate: {rf_proba[0]*100:.1f}%")
-            print(f"  - Phishing: {rf_proba[1]*100:.1f}%")
-            print(f"\nCombined Weighted Probability (60% XGBoost, 40% RF):")
-            print(f"  - Legitimate: {weighted_proba[0]*100:.1f}%")
-            print(f"  - Phishing: {weighted_proba[1]*100:.1f}%")
-            print("-------------------")
-            
-            # Get features for display
-            features = data.iloc[0].to_dict()
-            
-            # Determine final result based on weighted probability
-            is_phishing = weighted_proba[1] > 0.5
-            confidence = "HIGH" if abs(weighted_proba[1] - 0.5) > 0.3 else "MEDIUM"
-            trust_level = "HIGH" if is_trusted_domain(url) else "NORMAL"
-            
-            # Override classification if suspicious redirect is detected
             if suspicious_redirect:
                 is_phishing = True
                 confidence = "HIGH"
                 value = f"⚠️ {confidence} RISK: This URL is Phishing"
-                # Combine all reasons for suspicious URLs, using set to prevent duplicates
-                reasons = set()
-                
-                # Add connectivity warning if website is not accessible
-                if connectivity_warning:
-                    reasons.add(connectivity_warning)
-                
-                # Add shortened URL information if applicable
-                if is_shortened:
-                    reasons.add(f"⚠️ WARNING: This is a shortened URL")
-                    reasons.add(f"Final destination: {final_url}")
-                
-                # Add domain trust information if applicable
-                if trust_level == "HIGH":
-                    reasons.add("⚠️ WARNING: This URL is on a trusted domain (.gov.np/.edu.np) but shows suspicious behavior. Even trusted domains can be compromised.")
-                
-                if phishing_reasons:
-                    reasons.update(phishing_reasons)
-                if not reasons:
-                    reasons.add("Multiple indicators suggest this is a phishing website")
-                reasons = list(reasons)  # Convert set back to list for template
+                reasons = []
+                reasons.append("⚠️ HIGH RISK: This is a phishing attempt! • Redirects to a suspicious login • Website is inaccessible (common in phishing)")
+                if final_url:
+                    reasons.append(f"Final destination: {final_url}")
+                return render_template("home.html", error=value, reasons=reasons)
+        if is_phishing:
+            value = f"⚠️ {confidence} RISK: This URL is Phishing"
+            reasons = []
+            if phishing_reasons:
+                reasons.extend(phishing_reasons)
+            if not reasons:
+                reasons.append("Multiple indicators suggest this is a phishing website")
+        else:
+            if trust_level == "HIGH":
+                value = "This URL is Legitimate"
+                reasons = [f"This is an official website on a trusted domain ({urlparse(url).netloc})"]
             else:
-                # Prepare the response
-                if is_phishing:
-                    value = f"⚠️ {confidence} RISK: This URL is Phishing"
-                    # Combine all reasons for suspicious URLs, using set to prevent duplicates
-                    reasons = set()
-                    
-                    # Add connectivity warning if website is not accessible
-                    if connectivity_warning:
-                        reasons.add(connectivity_warning)
-                    
-                    # Add shortened URL information if applicable
-                    if is_shortened:
-                        reasons.add(f"⚠️ WARNING: This is a shortened URL")
-                        reasons.add(f"Final destination: {final_url}")
-                    
-                    # Add domain trust information if applicable
-                    if trust_level == "HIGH":
-                        reasons.add("⚠️ WARNING: This URL is on a trusted domain (.gov.np/.edu.np) but shows suspicious behavior. Even trusted domains can be compromised.")
-                    
-                    if phishing_reasons:
-                        reasons.update(phishing_reasons)
-                    if not reasons:
-                        reasons.add("Multiple indicators suggest this is a phishing website")
-                    reasons = list(reasons)  # Convert set back to list for template
-                else:
-                    if trust_level == "HIGH":
-                        value = "This URL is Legitimate"
-                        reasons = [f"This is an official website on a trusted domain ({urlparse(url).netloc})"]
-                    else:
-                        value = "This URL is Legitimate"
-                        reasons = []  # No reasons for legitimate URLs
-                    
-                    # Add connectivity warning if website is not accessible
-                    if connectivity_warning:
-                        reasons.append(connectivity_warning)
-                    
-                    # Add shortened URL information even for legitimate URLs
-                    if is_shortened:
-                        reasons.append(f"This is a shortened URL")
-                        reasons.append(f"Final destination: {final_url}")
-            
-            return render_template("home.html", error=value, reasons=reasons)
-            
-        except Exception as e:
-            print(f"Error during prediction: {str(e)}")
-            return render_template("home.html", error=f"Error during prediction: {str(e)}")
+                value = "This URL is Legitimate"
+                reasons = []
+        
+        return render_template("home.html", error=value, reasons=reasons)
 
 if __name__ == "__main__":
     app.run(debug=True)

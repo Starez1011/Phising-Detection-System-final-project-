@@ -568,11 +568,9 @@ class FeatureExtraction:
             
             # Check for redirection - only if domains are different
             features['redirection_//_symbol'] = 1 if is_shortened else 0
-            if features['redirection_//_symbol']:
-                phishing_reasons.append("URL redirects to a different domain")
             
             # Check for prefix-suffix separation
-            features['prefix_suffix_seperation'] = 1 if '-' in domain and len(domain.split('-')) > 2 else 0
+            features['prefix_suffix_seperation'] = 1 if '-' in domain and len(domain.split('-')) > 1 else 0
             if features['prefix_suffix_seperation']:
                 phishing_reasons.append("Domain contains multiple hyphens")
             
@@ -631,7 +629,6 @@ class FeatureExtraction:
             # Mark if it was a shortened URL - only if domains are different
             features['shortening_service'] = 1 if is_shortened else 0
             if is_shortened:
-                phishing_reasons.append(f"URL redirects to a different domain. Original: {original_url}")
                 phishing_reasons.append(f"Final destination: {final_url}")
             
             return pd.DataFrame([features]), phishing_reasons
@@ -731,7 +728,7 @@ class FeatureExtraction:
         try:
             # Add http:// if not present
             if not url.startswith(('http://', 'https://')):
-                url = 'http://' + url
+                url = 'https://' + url
             
             # Parse the URL
             parsed = urlparse(url)
