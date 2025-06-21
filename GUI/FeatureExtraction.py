@@ -518,6 +518,7 @@ class FeatureExtraction:
             # Extract features
             features = {}
             phishing_reasons = []
+            unknown_features = []  # Track unknown features
             
             # Always extract registered domain and subdomain for original and final URLs
             orig_ext = tldextract.extract(url)
@@ -529,7 +530,7 @@ class FeatureExtraction:
             final_ext = tldextract.extract(final_url)
             final_registered_domain = final_ext.registered_domain
             final_subdomain = final_ext.subdomain
-            final_full_domain = f"{final_subdomain}.{final_registered_domain}" if final_subdomain else final_registered_domain
+            final_full_domain = f"{final_subdomain}.{final_registered_domain}" if final_subdomain else original_registered_domain
             
             # Detect redirect/shortening if registered domain changes or subdomain changes (excluding www)
             def normalize_subdomain(sub):
@@ -563,7 +564,7 @@ class FeatureExtraction:
             
             features['suspicious_subdomain'] = 0
             
-            # Basic URL features
+            # Basic URL features (always available)
             features['long_url'] = 1 if len(url) > 54 else 0
             if features['long_url']:
                 phishing_reasons.append("URL is unusually long")
@@ -605,20 +606,33 @@ class FeatureExtraction:
             
             # Check domain registration length (use registered domain)
             reg_length = self._get_domain_registration_length(final_registered_domain if is_shortened else original_registered_domain)
-            features['domain_registration_length'] = 1 if reg_length and reg_length < 365 else 0
-            if features['domain_registration_length']:
-                phishing_reasons.append("Domain registration period is less than 1 year")
+            if reg_length == 2:  # Unknown value
+                features['domain_registration_length'] = 2
+                unknown_features.append('domain_registration_length')
+            else:
+                features['domain_registration_length'] = 1 if reg_length and reg_length < 365 else 0
+                if features['domain_registration_length']:
+                    phishing_reasons.append("Domain registration period is less than 1 year")
             
             # Check DNS record (use registered domain)
-            features['dns_record'] = 1 if not self._has_dns_record(final_registered_domain if is_shortened else original_registered_domain) else 0
-            if features['dns_record']:
-                phishing_reasons.append("No DNS record found")
+            dns_result = self._has_dns_record(final_registered_domain if is_shortened else original_registered_domain)
+            if dns_result == 2:  # Unknown value
+                features['dns_record'] = 2
+                unknown_features.append('dns_record')
+            else:
+                features['dns_record'] = 1 if not dns_result else 0
+                if features['dns_record']:
+                    phishing_reasons.append("No DNS record found")
             
             # Check domain age (use registered domain)
             age = self._get_domain_age(final_registered_domain if is_shortened else original_registered_domain)
-            features['age_of_domain'] = 1 if age and age < 180 else 0
-            if features['age_of_domain']:
-                phishing_reasons.append("Domain is less than 6 months old")
+            if age == 2:  # Unknown value
+                features['age_of_domain'] = 2
+                unknown_features.append('age_of_domain')
+            else:
+                features['age_of_domain'] = 1 if age and age < 180 else 0
+                if features['age_of_domain']:
+                    phishing_reasons.append("Domain is less than 6 months old")
             
             # Statistical report
             features['statistical_report'] = 1 if self._is_suspicious_pattern(url) else 0
@@ -637,6 +651,10 @@ class FeatureExtraction:
             features['shortening_service'] = 1 if is_shortened else 0
             if is_shortened:
                 phishing_reasons.append(f"Final destination: {final_url}")
+            
+            # Log unknown features
+            if unknown_features:
+                print(f"Unknown features for {url}: {unknown_features}")
             
             return pd.DataFrame([features]), phishing_reasons
         except Exception as e:
@@ -674,7 +692,7 @@ class FeatureExtraction:
                     return False
         except Exception as e:
             print(f"DNS resolution error: {str(e)}")
-            return False
+            return 2  # Special value for unknown when DNS resolution fails
 
     def _is_suspicious_pattern(self, url):
         """Check for suspicious patterns in the URL"""
@@ -760,10 +778,11 @@ class FeatureExtraction:
                 
                 age = datetime.now() - creation_date
                 return age.days
-            return None
+            # No creation date - return special value for unknown
+            return 2
         except Exception as e:
             print(f"WHOIS lookup error: {str(e)}")
-            return None
+            return 2  # Special value for unknown
 
     def _get_domain_registration_length(self, domain):
         """Get domain registration length using python-whois"""
@@ -783,10 +802,11 @@ class FeatureExtraction:
                     
                     registration_length = expiration_date - creation_date
                     return registration_length.days
-            return None
+            # No expiration date or creation date - return special value for unknown
+            return 2
         except Exception as e:
             print(f"WHOIS lookup error: {str(e)}")
-            return None
+            return 2  # Special value for unknown
 
     def _resolve_shortened_url(self, url):
         """Resolve a shortened URL to its final destination"""

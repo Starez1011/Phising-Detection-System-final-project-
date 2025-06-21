@@ -45,21 +45,21 @@ def train_and_save_models():
     )
     xgb_model.fit(X, y)
     
-    print("Training Random Forest model...")
-    rf_model = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=10,
-        random_state=42
-    )
-    rf_model.fit(X, y)
+    # print("Training Random Forest model...")
+    # rf_model = RandomForestClassifier(
+    #     n_estimators=100,
+    #     max_depth=10,
+    #     random_state=42
+    # )
+    # rf_model.fit(X, y)
     
     print("Saving models...")
     # Save XGBoost model
     xgb_model.save_model('XGBoostModel_12000.sav')
     
     # Save Random Forest model
-    with open('RFmodel_12000.sav', 'wb') as f:
-        pickle.dump(rf_model, f)
+    # with open('RFmodel_12000.sav', 'wb') as f:
+    #     pickle.dump(rf_model, f)
     
     print("Models saved successfully!")
 
