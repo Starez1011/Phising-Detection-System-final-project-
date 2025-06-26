@@ -125,7 +125,7 @@ def check_url():
     return jsonify({'url': url, 'label': label, 'probabilities': xgb_proba.tolist(), 'user_message': user_message})
 
 
-@routes_bp.route('/history/combined', methods=['GET'])
+@routes_bp.route('/user/history', methods=['GET'])
 @login_required
 def history_combined():
     messages = Message.query.filter_by(user_id=current_user.id).all()
