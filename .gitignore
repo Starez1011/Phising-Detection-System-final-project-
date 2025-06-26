@@ -1,3 +1,7 @@
 GUI/.ipynb_checkpoints/
 
 .ipynb_checkpoints/
+GUI/__pycache__/
+GUI/.env
+GUI/GUI/
+instance/

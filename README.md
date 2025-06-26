@@ -1,10 +1,33 @@
-# Phishing Website Detection
+# Phishing Website and Text Detection
 
-A machine learning-based system for detecting phishing websites using various features extracted from URLs and website characteristics.
+A machine learning-based system for detecting phishing using both URL analysis and text content analysis. The system leverages advanced models to classify websites and messages as either legitimate or phishing, providing a comprehensive approach to phishing detection.
 
 ## Project Overview
 
-This project implements a machine learning system to detect phishing websites by analyzing various features of URLs and website characteristics. The system uses multiple machine learning models to classify websites as either legitimate or phishing.
+This project implements a multi-modal phishing detection system that analyzes both URLs and message text for phishing intent. The system uses:
+
+- **URL Analysis:**
+
+  - Extracts features from URLs and website characteristics.
+  - Uses a machine learning model (XGBoost) to classify URLs as legitimate or phishing.
+
+- **Text Analysis:**
+  - Uses a fine-tuned TinyBERT NLP model to analyze the content of messages for phishing intent.
+  - Classifies message text as legitimate or phishing based on language patterns and context.
+
+**How the system works:**
+
+1. When a user submits a message, the system:
+   - Extracts any URLs from the message and analyzes them using the XGBoost model.
+   - Analyzes the message text using the NLP model.
+2. Each component (URL and text) is classified as either legitimate or phishing.
+3. The system provides user-friendly feedback for both URL and text analysis, warning users about potential phishing threats.
+4. Results and predictions are stored for each user, and duplicate URLs are not stored for the same user.
+
+**Models Used:**
+
+- **XGBoost:** For URL-based phishing detection.
+- **TinyBERT (NLP):** For phishing intent detection in message text.
 
 ## Features
 
@@ -92,7 +115,7 @@ The project implements and compares multiple machine learning models:
    - Training Accuracy: 78.4%
    - Test Accuracy: 77.0%
    - Training Time: 1.260s
-   - Good performance but slower training
+   - Good performance for URL-based phishing detection
    - Confusion Matrix:
      ```
      [[914 263]
@@ -105,58 +128,66 @@ The project implements and compares multiple machine learning models:
      - Uses advanced regularization to prevent overfitting
      - Handles missing values automatically
 
-### Model Selection and Multi-Model Approach
+### Model Selection
 
-The project uses a multi-model approach with Random Forest and XGBoost as the primary models because:
+The project uses XGBoost as the primary model for URL-based phishing detection because:
 
-1. **Complementary Strengths**:
+- XGBoost captures complex patterns and relationships in URL features.
+- Provides robust performance and handles various types of phishing attempts.
 
-   - Random Forest: Better at handling categorical features and outliers
-   - XGBoost: Better at capturing complex patterns and relationships
+**Performance:**
 
-2. **Ensemble Benefits**:
+- **XGBoost:**
 
-   - Reduces variance in predictions
-   - Improves overall accuracy
-   - More robust to different types of phishing attempts
+  - Precision: 0.78 (legitimate), 0.76 (phishing)
+  - Recall: 0.78 (legitimate), 0.76 (phishing)
+  - F1-Score: 0.78 (legitimate), 0.76 (phishing)
 
-3. **Why This Combination is Better**:
+- **Confusion Matrix Analysis:**
+  - True Negatives (Legitimate): 914
+  - False Positives: 263
+  - False Negatives: 261
+  - True Positives (Phishing): 843
 
-   - Random Forest provides good baseline performance
-   - XGBoost captures patterns that Random Forest might miss
-   - Together they provide more reliable predictions
-   - Reduces false positives and false negatives
-   - Better handling of edge cases
+This shows that XGBoost provides reliable performance for URL-based phishing detection.
 
-4. **Performance Comparison**:
+## NLP Model: Phishing Text Detection
 
-   - Random Forest:
+This project also includes a Natural Language Processing (NLP) model for detecting phishing in text content using TinyBERT.
 
-     - Precision: 0.78 (legitimate), 0.76 (phishing)
-     - Recall: 0.78 (legitimate), 0.76 (phishing)
-     - F1-Score: 0.78 (legitimate), 0.76 (phishing)
+**Model:**
 
-   - XGBoost:
-     - Precision: 0.78 (legitimate), 0.76 (phishing)
-     - Recall: 0.78 (legitimate), 0.76 (phishing)
-     - F1-Score: 0.78 (legitimate), 0.76 (phishing)
+- TinyBERT (huawei-noah/TinyBERT_General_4L_312D), fine-tuned for phishing detection.
+- Binary classification: 0 = legitimate, 1 = phishing.
 
-5. **Confusion Matrix Analysis**:
+**How it works:**
 
-   - Random Forest:
+- If a fine-tuned model exists in `GUI/models/tinybert_phishing/`, it is loaded automatically.
+- If not, the pre-trained TinyBERT model is downloaded from HuggingFace and fine-tuned on your dataset using `train_nlp_model.py`.
+- The model is used to analyze message text for phishing indicators.
 
-     - True Negatives (Legitimate): 918
-     - False Positives: 259
-     - False Negatives: 262
-     - True Positives (Phishing): 842
+**Accuracy:**
 
-   - XGBoost:
-     - True Negatives (Legitimate): 914
-     - False Positives: 263
-     - False Negatives: 261
-     - True Positives (Phishing): 843
+- The script prints validation accuracy after each epoch during training (e.g., `Validation accuracy: 0.93`).
+- Check your terminal output after running `train_nlp_model.py` for the exact value.
 
-   This shows that both models have similar performance but make different types of errors, making them complementary when used together.
+**How to use the NLP model:**
+
+1. **Download and/or train the model:**
+   ```
+   python GUI/train_nlp_model.py
+   ```
+   - This will download TinyBERT if not present, fine-tune it on your dataset, and save it to `GUI/models/tinybert_phishing/`.
+2. **Run the app:**
+   ```
+   python GUI/app.py
+   ```
+   - The app will automatically use the fine-tuned NLP model for phishing text detection.
+
+**Note:**
+
+- The model and tokenizer will be downloaded automatically if not present.
+- Predictions and probabilities for both ML and NLP models are printed to the terminal for each request.
 
 ## Usage
 
@@ -167,4 +198,5 @@ The project uses a multi-model approach with Random Forest and XGBoost as the pr
 
 ## Acknowledgments
 
-- Dataset sources - Kaggle, Phistank
+- Dataset sources - Kaggle, Phistank,
+- Dataset sources for nlp model: https://data.mendeley.com/datasets/f45bkkt8pr/1?utm_source=chatgpt.com
