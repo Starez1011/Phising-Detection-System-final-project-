@@ -153,3 +153,42 @@ def history_combined():
     # Sort by timestamp, latest first
     combined.sort(key=lambda x: x['timestamp'], reverse=True)
     return jsonify(combined)
+
+@routes_bp.route('/stats', methods=['GET'])
+def stats():
+    # TinyBERT stats (from your last run)
+    tinybert_stats = {
+        "validation_accuracy": 0.9866,
+        "precision": 0.9904,
+        "recall": 0.9367,
+        "f1_score": 0.9628,
+        "confusion_matrix": [[972, 2], [14, 207]],
+        "classification_report": {
+            "0": {"precision": 0.99, "recall": 1.00, "f1-score": 0.99, "support": 974},
+            "1": {"precision": 0.99, "recall": 0.94, "f1-score": 0.96, "support": 221},
+            "accuracy": 0.99,
+            "macro avg": {"precision": 0.99, "recall": 0.97, "f1-score": 0.98, "support": 1195},
+            "weighted avg": {"precision": 0.99, "recall": 0.99, "f1-score": 0.99, "support": 1195}
+        }
+    }
+
+    # XGBoost stats (from your Jupyter notebook, user provided)
+    xgboost_stats = {
+        "test_accuracy": 0.7703,
+        "precision": 0.77,
+        "recall": 0.77,
+        "f1_score": 0.77,
+        "confusion_matrix": [[914, 263], [261, 843]],
+        "classification_report": {
+            "0": {"precision": 0.78, "recall": 0.78, "f1-score": 0.78, "support": 1177},
+            "1": {"precision": 0.76, "recall": 0.76, "f1-score": 0.76, "support": 1104},
+            "accuracy": 0.77,
+            "macro avg": {"precision": 0.77, "recall": 0.77, "f1-score": 0.77, "support": 2281},
+            "weighted avg": {"precision": 0.77, "recall": 0.77, "f1-score": 0.77, "support": 2281}
+        }
+    }
+
+    return jsonify({
+        "tinybert": tinybert_stats,
+        "xgboost": xgboost_stats
+    })
