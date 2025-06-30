@@ -128,6 +128,36 @@ The project implements and compares multiple machine learning models:
      - Uses advanced regularization to prevent overfitting
      - Handles missing values automatically
 
+### Understanding Performance Metrics
+
+When evaluating classification models, we use several important metrics:
+
+- **Precision:** Measures how many of the items predicted as phishing are actually phishing.
+
+  - Formula: Precision = True Positives / (True Positives + False Positives)
+  - Example: If your model predicts 100 websites as phishing, and 77 of them are actually phishing, the precision is 77%.
+
+- **Recall:** Measures how many of the actual phishing websites your model correctly identified.
+
+  - Formula: Recall = True Positives / (True Positives + False Negatives)
+  - Example: If there are 100 phishing websites in reality, and your model correctly finds 77 of them, the recall is 77%.
+
+- **F1-score:** The harmonic mean of precision and recall, providing a single score that balances both.
+  - Formula: F1-score = 2 × (Precision × Recall) / (Precision + Recall)
+  - Example: If both precision and recall are 77%, the F1-score will also be 77%.
+
+**Why are these important?**
+
+- Precision is important when the cost of a false positive is high (e.g., marking a legitimate site as phishing).
+- Recall is important when the cost of a false negative is high (e.g., missing a phishing site).
+- F1-score is useful when you want a balance between precision and recall.
+
+| Metric    | What it answers                                          | Formula                                         |
+| --------- | -------------------------------------------------------- | ----------------------------------------------- |
+| Precision | Of all predicted phishing, how many are really phishing? | TP / (TP + FP)                                  |
+| Recall    | Of all real phishing, how many did we catch?             | TP / (TP + FN)                                  |
+| F1-score  | Balance between precision and recall                     | 2 × (Precision × Recall) / (Precision + Recall) |
+
 ### Model Selection
 
 The project uses XGBoost as the primary model for URL-based phishing detection because:
