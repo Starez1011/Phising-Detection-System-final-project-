@@ -14,7 +14,7 @@ mail = Mail()
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return User.query.get(user_id)
 
 @auth_bp.record_once
 def on_load(state):

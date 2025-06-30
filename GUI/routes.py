@@ -4,6 +4,7 @@ from models import db, URLCheck, TextCheck, Message
 from FeatureExtraction import FeatureExtraction
 from ml_models import load_xgb_model, preprocess_data
 from nlp_models import TinyBERTPhishingDetector
+import re
 
 routes_bp = Blueprint('routes', __name__)
 feature_extractor = FeatureExtraction()
@@ -27,24 +28,22 @@ def check_message():
     if not message:
         return jsonify({'error': 'No message provided'}), 400
     
-    # 1. Save full message
-    msg = Message(user_id=current_user.id, content=message)
-    db.session.add(msg)
-    db.session.commit()
+    # 1. Save full message only if not already present for this user
+    existing_message = Message.query.filter_by(user_id=current_user.id, content=message).first()
+    if not existing_message:
+        msg = Message(user_id=current_user.id, content=message)
+        db.session.add(msg)
+        db.session.commit()
+    else:
+        msg = existing_message
     
-    # 2. Split message into text and url
+    # 2. Split message into text and url using regex for http/https
     url = None
     text = message
-    
-    # Look specifically for 'https://' URLs
-    if 'https://' in message:
-        parts = message.split('https://')
-        if len(parts) > 1:
-            # Take the first URL found
-            url_part = 'https://' + parts[1].split()[0]  # Split at first whitespace
-            url = url_part
-            # Remove the URL from text
-            text = message.replace(url_part, '').strip()
+    url_match = re.search(r'(https?://\S+)', message)
+    if url_match:
+        url = url_match.group(1)
+        text = message.replace(url, '').strip()
     
     # 3. Process URL (if present)
     url_result = None
@@ -74,9 +73,12 @@ def check_message():
         nlp_result = nlp_model.predict(text)
         text_label = nlp_result['label']
         print(f"[NLP Prediction] Text: {text}, Label: {text_label}, Probabilities: {nlp_result['probabilities']}")
-        text_obj = TextCheck(user_id=current_user.id, text=text, label=text_label)
-        db.session.add(text_obj)
-        db.session.commit()
+        # Only add if not already present for this user
+        existing_text = TextCheck.query.filter_by(user_id=current_user.id, text=text).first()
+        if not existing_text:
+            text_obj = TextCheck(user_id=current_user.id, text=text, label=text_label)
+            db.session.add(text_obj)
+            db.session.commit()
         if text_label == 0:
             text_user_message = "The text content appears safe and does not indicate phishing."
         else:
@@ -174,6 +176,7 @@ def stats():
 
     # XGBoost stats (from your Jupyter notebook, user provided)
     xgboost_stats = {
+        "train_accuracy": 0.7842,
         "test_accuracy": 0.7703,
         "precision": 0.77,
         "recall": 0.77,
