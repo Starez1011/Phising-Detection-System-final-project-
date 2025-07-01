@@ -53,7 +53,9 @@ def check_message():
         data = preprocess_data(data)
         xgb_proba = xgb_model.predict_proba(data)[0]
         url_label = int(xgb_proba[0] <= 0.57)
-        print(f"[ML Prediction] URL: {url}, Label: {url_label}, Probabilities: {xgb_proba.tolist()}")
+        legit_percent = round(xgb_proba[0] * 100, 2)
+        phish_percent = round(xgb_proba[1] * 100, 2)
+        print(f"[ML Prediction] URL: {url}, \nLegitimate: {legit_percent}%, \nPhishing: {phish_percent}%")
         # Only add if not already present for this user
         existing_url = URLCheck.query.filter_by(user_id=current_user.id, url=url).first()
         if not existing_url:
@@ -72,7 +74,10 @@ def check_message():
     if text and nlp_model:
         nlp_result = nlp_model.predict(text)
         text_label = nlp_result['label']
-        print(f"[NLP Prediction] Text: {text}, Label: {text_label}, Probabilities: {nlp_result['probabilities']}")
+        nlp_proba = nlp_result['probabilities']
+        legit_percent = round(nlp_proba[0] * 100, 2)
+        phish_percent = round(nlp_proba[1] * 100, 2)
+        print(f"[NLP Prediction] Text: {text}, \nLegitimate: {legit_percent}%, \nPhishing: {phish_percent}%")
         # Only add if not already present for this user
         existing_text = TextCheck.query.filter_by(user_id=current_user.id, text=text).first()
         if not existing_text:
@@ -113,7 +118,9 @@ def check_url():
     data = preprocess_data(data)
     xgb_proba = xgb_model.predict_proba(data)[0]
     label = int(xgb_proba[0] <= 0.57)
-    print(f"[ML Prediction] URL: {url}, Label: {label}, Probabilities: {xgb_proba.tolist()}")
+    legit_percent = round(xgb_proba[0] * 100, 2)
+    phish_percent = round(xgb_proba[1] * 100, 2)
+    print(f"[ML Prediction] URL: {url}, \nLegitimate: {legit_percent}%, \nPhishing: {phish_percent}%")
     # Only add if not already present for this user
     existing_url = URLCheck.query.filter_by(user_id=current_user.id, url=url).first()
     if not existing_url:
@@ -145,7 +152,32 @@ def history_combined():
     
     # Add messages
     for m in messages:
-        combined.append({'type': 'message', 'content': m.content, 'timestamp': m.timestamp})
+        # Split message into text and url using regex for http/https
+        url = None
+        text = m.content
+        url_match = re.search(r'(https?://\S+)', m.content)
+        if url_match:
+            url = url_match.group(1)
+            text = m.content.replace(url, '').strip()
+        # Get text label
+        text_label = None
+        if text:
+            text_check = TextCheck.query.filter_by(user_id=m.user_id, text=text).first()
+            if text_check:
+                text_label = text_check.label
+        # Get url label
+        url_label = None
+        if url:
+            url_check = URLCheck.query.filter_by(user_id=m.user_id, url=url).first()
+            if url_check:
+                url_label = url_check.label
+        combined.append({
+            'type': 'message',
+            'content': m.content,
+            'timestamp': m.timestamp,
+            'text_label': text_label,
+            'url_label': url_label
+        })
     
     # Add only those URLCheck entries whose url is NOT in any message content
     for u in urls:
