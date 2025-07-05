@@ -5,6 +5,15 @@ import xgboost as xgb
 import pickle
 import FeatureExtraction
 from sklearn.preprocessing import LabelEncoder
+import os
+
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+
+# Helper to build paths relative to project root
+def project_path(*parts):
+    return os.path.join(PROJECT_ROOT, *parts)
 
 def preprocess_data(data):
     # Drop non-numeric columns
@@ -16,20 +25,35 @@ def preprocess_data(data):
     return numeric_data
 
 def load_data():
-    # Load your training data
-    legitimate_urls = pd.read_csv("../extracted_csv_files/legitimate_websites_1.11.csv")
-    phishing_urls = pd.read_csv("../extracted_csv_files/phishing_websites_1.11.csv")
-    
-    # Combine the datasets
-    data = pd.concat([legitimate_urls, phishing_urls])
-    
-    # Separate features and target
-    X = data.drop('label', axis=1)
+    # Paths
+    new_csv = project_path('extracted_csv_files', 'xgboost_retrain.csv')
+    legit_csv = project_path('extracted_csv_files', 'legitimate_websites_1.11.csv')
+    phish_csv = project_path('extracted_csv_files', 'phishing_websites_1.11.csv')
+    # Load base data
+    legitimate_urls = pd.read_csv(legit_csv)
+    phishing_urls = pd.read_csv(phish_csv)
+    data = pd.concat([legitimate_urls, phishing_urls], ignore_index=True)
+    # If new CSV exists, concatenate it as well
+    if os.path.exists(new_csv):
+        print(f"Loading and concatenating data from {new_csv}...")
+        new_data = pd.read_csv(new_csv)
+        # Remove duplicates based on Address if present
+        if 'Address' in new_data.columns and 'Address' in data.columns:
+            combined = pd.concat([data, new_data], ignore_index=True)
+            combined = combined.drop_duplicates(subset=['Address'], keep='last')
+            data = combined
+        else:
+            data = pd.concat([data, new_data], ignore_index=True)
+    # Define feature columns (exclude non-features)
+    feature_cols = [
+        'long_url', 'having_@_symbol', 'redirection_//_symbol', 'prefix_suffix_seperation',
+        'sub_domains', 'having_ip_address', 'shortening_service', 'https_token',
+        'web_traffic', 'domain_registration_length', 'dns_record', 'age_of_domain',
+        'statistical_report'
+    ]
+    X = data[feature_cols]
     y = data['label']
-    
-    # Preprocess the features
     X = preprocess_data(X)
-    
     return X, y
 
 def train_and_save_models():
@@ -55,13 +79,14 @@ def train_and_save_models():
     
     print("Saving models...")
     # Save XGBoost model
-    xgb_model.save_model('XGBoostModel_12000.sav')
+    model_path = os.path.join(SCRIPT_DIR, 'XGBoostModel_12000.sav')
+    xgb_model.save_model(model_path)
     
     # Save Random Forest model
     # with open('RFmodel_12000.sav', 'wb') as f:
     #     pickle.dump(rf_model, f)
     
-    print("Models saved successfully!")
+    print(f"Models saved successfully! Model saved to {model_path}")
 
 if __name__ == "__main__":
     train_and_save_models() 

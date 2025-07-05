@@ -1,0 +1,11 @@
+Protocol,Domain_name,Address,long_url,having_@_symbol,redirection_//_symbol,prefix_suffix_seperation,sub_domains,having_ip_address,shortening_service,https_token,web_traffic,domain_registration_length,dns_record,age_of_domain,statistical_report,label
+https,nabilbank.com,https://nabilbank.com/,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+http,phishingsite.com,http://login.phishingsite.com,0,0,0,0,0,0,0,0,0,1,1,1,0,1
+https,ncit.edu.np,https://ncit.edu.np/,0,0,0,0,0,0,0,0,1,0,0,0,0,0
+https,bankofamerica.com,https://www.bankofamerica.com/,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+,nepal.gov.np,nepal.gov.np,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+,nepal.gov.np,login.nepal.gov.np,0,0,0,0,0,0,0,0,0,1,0,1,0,1
+,bilbank.com,n@bilbank.com,0,1,0,0,0,0,0,0,0,0,0,0,0,1
+https,nabilbank.com,https://nabilbank.com,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+https,siddharthabank.com,https://www.siddharthabank.com/,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+https,postman.co,https://hexacore-4770.postman.co/workspace/a0371f07-ec9b-4934-b093-23c6f9b28e2e/request/36487196-bdce56fc-6bda-43e1-a33d-255b71c0af4d?tab=body,1,0,0,1,0,0,0,0,0,0,0,0,0,1
