@@ -101,12 +101,12 @@ def login():
                 return jsonify({'error': 'Account not verified. Previous OTP expired, a new OTP has been sent to your email.'}), 403
         login_user(user)
         session['user_id'] = user.id
-        # Get the session token (session cookie value)
-        session_cookie_name = current_app.config.get("SESSION_COOKIE_NAME", "session")
-        session_token = request.cookies.get(session_cookie_name)
+        ## Get the session token (session cookie value)
+        # session_cookie_name = current_app.config.get("SESSION_COOKIE_NAME", "session")
+        # session_token = request.cookies.get(session_cookie_name)
         return jsonify({
             'message': 'Login successful',
-            'session_token': session_token,
+            # 'session_token': session_token,
             'username': user.username,
             'email': user.email
         })
