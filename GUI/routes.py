@@ -173,6 +173,7 @@ def history_combined():
                 url_label = url_check.label
         combined.append({
             'type': 'message',
+            'id': m.id,  # Add message id
             'content': m.content,
             'timestamp': m.timestamp,
             'text_label': text_label,
@@ -182,7 +183,7 @@ def history_combined():
     # Add only those URLCheck entries whose url is NOT in any message content
     for u in urls:
         if u.url not in message_urls:
-            combined.append({'type': 'url', 'url': u.url, 'label': u.label, 'timestamp': u.timestamp})
+            combined.append({'type': 'url', 'id': u.id, 'url': u.url, 'label': u.label, 'timestamp': u.timestamp})
     
     # Sort by timestamp, latest first
     combined.sort(key=lambda x: x['timestamp'], reverse=True)
@@ -227,3 +228,28 @@ def stats():
         "tinybert": tinybert_stats,
         "xgboost": xgboost_stats
     })
+
+@routes_bp.route('/user/deleteHistory', methods=['POST'])
+@login_required
+def delete_history_item():
+    data = request.json
+    item_id = data.get('id')
+    item_type = data.get('type')  # 'message' or 'url'
+    if not item_id or not item_type:
+        return jsonify({'error': 'Missing id or type'}), 400
+    if item_type.lower() == 'message':
+        item = Message.query.filter_by(id=item_id, user_id=current_user.id).first()
+        if not item:
+            return jsonify({'error': 'Message not found or not authorized'}), 404
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'message': 'Message deleted successfully'})
+    elif item_type == 'url':
+        item = URLCheck.query.filter_by(id=item_id, user_id=current_user.id).first()
+        if not item:
+            return jsonify({'error': 'URL not found or not authorized'}), 404
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'message': 'URL deleted successfully'})
+    else:
+        return jsonify({'error': 'Invalid type'}), 400
