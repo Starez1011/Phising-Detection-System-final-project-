@@ -253,3 +253,72 @@ def delete_history_item():
         return jsonify({'message': 'URL deleted successfully'})
     else:
         return jsonify({'error': 'Invalid type'}), 400
+
+@routes_bp.route('/user/getDetail', methods=['GET'])
+@login_required
+def get_detail_item():
+    item_id = request.args.get('id')
+    item_type = request.args.get('type')  # 'message' or 'url'
+    
+    if not item_id or not item_type:
+        return jsonify({'error': 'Missing id or type'}), 400
+    
+    if item_type.lower() == 'message':
+        item = Message.query.filter_by(id=item_id, user_id=current_user.id).first()
+        if not item:
+            return jsonify({'error': 'Message not found or not authorized'}), 404
+        
+        # Split message into text and url using regex for http/https
+        url = None
+        text = item.content
+        url_match = re.search(r'(https?://\S+)', item.content)
+        if url_match:
+            url = url_match.group(1)
+            text = item.content.replace(url, '').strip()
+        
+        # Get text analysis if text exists
+        text_result = None
+        if text:
+            text_check = TextCheck.query.filter_by(user_id=item.user_id, text=text).first()
+            if text_check:
+                text_result = {
+                    'text': text,
+                    'label': text_check.label,
+                    'timestamp': text_check.timestamp
+                }
+        
+        # Get URL analysis if URL exists
+        url_result = None
+        if url:
+            url_check = URLCheck.query.filter_by(user_id=item.user_id, url=url).first()
+            if url_check:
+                url_result = {
+                    'url': url,
+                    'label': url_check.label,
+                    'timestamp': url_check.timestamp
+                }
+        
+        return jsonify({
+            'type': 'message',
+            'id': item.id,
+            'content': item.content,
+            'timestamp': item.timestamp,
+            'text_result': text_result,
+            'url_result': url_result
+        })
+        
+    elif item_type == 'url':
+        item = URLCheck.query.filter_by(id=item_id, user_id=current_user.id).first()
+        if not item:
+            return jsonify({'error': 'URL not found or not authorized'}), 404
+        
+        return jsonify({
+            'type': 'url',
+            'id': item.id,
+            'url': item.url,
+            'label': item.label,
+            'timestamp': item.timestamp
+        })
+        
+    else:
+        return jsonify({'error': 'Invalid type'}), 400
