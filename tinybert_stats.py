@@ -35,6 +35,7 @@ f1 = f1_score(val_labels, preds)
 cm = confusion_matrix(val_labels, preds)
 report = classification_report(val_labels, preds)
 
+print("\nTinyBERT Statistics:\n")
 print(f"Validation Accuracy: {accuracy:.4f}")
 print(f"Precision: {precision:.4f}")
 print(f"Recall: {recall:.4f}")
