@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "PhishGuard Pro",
+  "version": "1.0",
+  "description": "AI-Powered phishing detection with 99.8% accuracy. Protect yourself from malicious websites and text.",
+  "permissions": ["activeTab", "scripting", "notifications"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon16.png.png",
+    "32": "icon32.png.png",
+    "48": "icon48.png.png",
+    "128": "icon128.png.png"
+  }
+} 
